@@ -1,0 +1,17 @@
+{
+  "name": "hireflow-e2e",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Playwright end-to-end suite for HireFlow: exercises all three roles against the real running stack (frontend + backend + Postgres), including direct API-level negative/authorization proofs.",
+  "scripts": {
+    "test": "playwright test",
+    "test:headed": "playwright test --headed",
+    "report": "playwright show-report"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.62.1",
+    "@types/node": "^20.14.0",
+    "pg": "^8.12.0",
+    "typescript": "~5.5.2"
+  }
+}

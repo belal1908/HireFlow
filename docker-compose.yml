@@ -1,0 +1,65 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: hireflow-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${DB_NAME:-hireflow}
+      POSTGRES_USER: ${DB_USERNAME:-hireflow}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-hireflow}
+    ports:
+      - "${DB_HOST_PORT:-5433}:5432"
+    volumes:
+      - hireflow-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME:-hireflow} -d ${DB_NAME:-hireflow}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # --- Everything below is behind the "full" profile, so it stays additive: -----------------
+  # `docker compose up -d` (no profile) still brings up Postgres only, exactly as documented
+  # for the local `mvn spring-boot:run` + `ng serve` workflow. `docker compose --profile full up`
+  # brings up the entire stack (Postgres + backend + frontend) in containers. See the README's
+  # "Full stack via Docker Compose" section.
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: hireflow-backend
+    profiles: ["full"]
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      # Internal Docker network: reach Postgres by its Compose service name/port, not localhost
+      # and not the host-published DB_HOST_PORT (that mapping is only for the host machine).
+      DB_URL: jdbc:postgresql://postgres:5432/${DB_NAME:-hireflow}
+      DB_USERNAME: ${DB_USERNAME:-hireflow}
+      DB_PASSWORD: ${DB_PASSWORD:-hireflow}
+      JWT_SECRET: ${JWT_SECRET:-change-this-to-a-long-random-secret-value-before-running-outside-your-laptop}
+      JWT_ACCESS_TTL_MINUTES: ${JWT_ACCESS_TTL_MINUTES:-15}
+      JWT_REFRESH_TTL_DAYS: ${JWT_REFRESH_TTL_DAYS:-7}
+      SERVER_PORT: 8080
+    ports:
+      # Published to the host so the *browser* (not just other containers) can reach the API -
+      # a browser-rendered SPA can't resolve Docker-internal service names, so the frontend's
+      # apiUrl points at this host-published port. See frontend/Dockerfile's comment.
+      - "${BACKEND_HOST_PORT:-8080}:8080"
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: hireflow-frontend
+    profiles: ["full"]
+    restart: unless-stopped
+    depends_on:
+      - backend
+    ports:
+      - "${FRONTEND_HOST_PORT:-4200}:80"
+
+volumes:
+  hireflow-postgres-data:

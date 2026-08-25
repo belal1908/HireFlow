@@ -1,0 +1,53 @@
+<div class="page">
+  <h1>My Applications</h1>
+
+  @if (errorMessage()) {
+    <p class="error" role="alert">{{ errorMessage() }}</p>
+  }
+  @if (actionError()) {
+    <p class="error" role="alert">{{ actionError() }}</p>
+  }
+
+  @if (loading()) {
+    <p>Loading…</p>
+  } @else if (applications().length === 0) {
+    <p class="empty">You haven't applied to anything yet.</p>
+  } @else {
+    <table>
+      <thead>
+        <tr>
+          <th>Posting</th>
+          <th>Status</th>
+          <th>Applied</th>
+          <th>Updated</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (app of applications(); track app.id) {
+          <tr [id]="'app-row-' + app.id">
+            <td>{{ postingTitle(app.jobPostingId) }}</td>
+            <td><span class="status-badge" [attr.data-status]="app.status">{{ app.status }}</span></td>
+            <td>{{ app.createdAt | date: 'short' }}</td>
+            <td>{{ app.updatedAt | date: 'short' }}</td>
+            <td class="actions">
+              @if (app.status === 'OFFER') {
+                <button type="button" class="accept-btn" [disabled]="actingOnId() === app.id" (click)="acceptOffer(app)">
+                  Accept offer
+                </button>
+              }
+              @if (!isTerminal(app.status)) {
+                <button type="button" class="withdraw-btn" [disabled]="actingOnId() === app.id" (click)="withdraw(app)">
+                  Withdraw
+                </button>
+              }
+              @if (isTerminal(app.status)) {
+                <span class="muted">No actions available</span>
+              }
+            </td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  }
+</div>

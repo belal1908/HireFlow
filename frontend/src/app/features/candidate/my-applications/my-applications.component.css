@@ -1,0 +1,99 @@
+.page {
+  max-width: 1000px;
+  margin: 0 auto;
+  padding: 1.5rem;
+}
+
+h1 {
+  font-size: 1.3rem;
+  margin-bottom: 1rem;
+}
+
+.error {
+  color: #b3261e;
+  background: #fdecea;
+  border: 1px solid #f4c7c3;
+  padding: 0.5rem 0.75rem;
+  border-radius: 4px;
+  font-size: 0.85rem;
+  margin-bottom: 0.75rem;
+}
+
+.empty {
+  color: #666;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.88rem;
+}
+
+th,
+td {
+  text-align: left;
+  padding: 0.6rem 0.5rem;
+  border-bottom: 1px solid #eee;
+}
+
+th {
+  color: #666;
+  font-weight: 600;
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.status-badge {
+  display: inline-block;
+  padding: 0.2rem 0.55rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  background: #eef1ff;
+  color: #2454ff;
+}
+
+.status-badge[data-status='ACCEPTED'] {
+  background: #e6f7ec;
+  color: #1e7e34;
+}
+
+.status-badge[data-status='REJECTED'],
+.status-badge[data-status='WITHDRAWN'] {
+  background: #f2f2f2;
+  color: #666;
+}
+
+.actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.actions button {
+  padding: 0.35rem 0.65rem;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.82rem;
+}
+
+.accept-btn {
+  background: #1e7e34;
+  color: white;
+}
+
+.withdraw-btn {
+  background: #b3261e;
+  color: white;
+}
+
+.actions button:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.muted {
+  color: #999;
+  font-size: 0.8rem;
+}

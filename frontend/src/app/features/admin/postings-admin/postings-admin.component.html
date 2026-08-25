@@ -1,0 +1,89 @@
+<div class="page">
+  <h1>Manage Postings</h1>
+
+  <form class="create-card" [formGroup]="createForm" (ngSubmit)="createPosting()">
+    <h2>New posting</h2>
+    <label for="new-title">Title</label>
+    <input id="new-title" type="text" formControlName="title" />
+    @if (createForm.controls.title.invalid && createForm.controls.title.touched) {
+      <p class="field-error">Title is required (max 200 chars).</p>
+    }
+
+    <label for="new-description">Description</label>
+    <textarea id="new-description" rows="3" formControlName="description"></textarea>
+
+    @if (createError()) {
+      <p class="form-error" role="alert">{{ createError() }}</p>
+    }
+
+    <button type="submit" [disabled]="creating()">{{ creating() ? 'Creating…' : 'Create posting' }}</button>
+  </form>
+
+  @if (errorMessage()) {
+    <p class="error" role="alert">{{ errorMessage() }}</p>
+  }
+
+  @if (loading()) {
+    <p>Loading…</p>
+  } @else if (postings().length === 0) {
+    <p class="empty">No postings yet — create one above.</p>
+  } @else {
+    <table>
+      <thead>
+        <tr>
+          <th>Title</th>
+          <th>Status</th>
+          <th>Created</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (posting of postings(); track posting.id) {
+          @if (editingId() === posting.id) {
+            <tr class="edit-row" [formGroup]="editForm">
+              <td>
+                <input type="text" formControlName="title" />
+                <textarea rows="2" formControlName="description"></textarea>
+              </td>
+              <td>
+                <select formControlName="status">
+                  <option value="OPEN">OPEN</option>
+                  <option value="CLOSED">CLOSED</option>
+                </select>
+              </td>
+              <td>{{ posting.createdAt | date: 'short' }}</td>
+              <td class="actions">
+                <button type="button" class="save-btn" [disabled]="savingId() === posting.id" (click)="saveEdit(posting.id)">
+                  {{ savingId() === posting.id ? 'Saving…' : 'Save' }}
+                </button>
+                <button type="button" class="cancel-btn" (click)="cancelEdit()">Cancel</button>
+              </td>
+            </tr>
+            @if (editError()) {
+              <tr>
+                <td colspan="4"><p class="form-error">{{ editError() }}</p></td>
+              </tr>
+            }
+          } @else {
+            <tr>
+              <td>
+                <strong>{{ posting.title }}</strong>
+                @if (posting.description) {
+                  <p class="description">{{ posting.description }}</p>
+                }
+              </td>
+              <td><span class="status-badge" [attr.data-status]="posting.status">{{ posting.status }}</span></td>
+              <td>{{ posting.createdAt | date: 'short' }}</td>
+              <td class="actions">
+                <button type="button" class="edit-btn" (click)="startEdit(posting)">Edit</button>
+                <button type="button" class="toggle-btn" [disabled]="savingId() === posting.id" (click)="toggleOpenClosed(posting)">
+                  {{ posting.status === 'OPEN' ? 'Close' : 'Reopen' }}
+                </button>
+              </td>
+            </tr>
+          }
+        }
+      </tbody>
+    </table>
+  }
+</div>

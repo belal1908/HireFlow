@@ -1,0 +1,30 @@
+<nav class="nav-bar">
+  <span class="brand">HireFlow</span>
+
+  @if (authService.isLoggedIn()) {
+    <div class="links">
+      @if (authService.hasRole('CANDIDATE')) {
+        <a routerLink="/postings" routerLinkActive="active">Postings</a>
+        <a routerLink="/applications/mine" routerLinkActive="active">My Applications</a>
+      }
+      @if (authService.hasRole('RECRUITER', 'ADMIN')) {
+        <a routerLink="/recruiter/applications" routerLinkActive="active">Applications</a>
+      }
+      @if (authService.hasRole('ADMIN')) {
+        <a routerLink="/admin/postings" routerLinkActive="active">Manage Postings</a>
+        <a routerLink="/admin/users" routerLinkActive="active">Manage Users</a>
+      }
+    </div>
+
+    <div class="user-info">
+      <span class="email">{{ authService.currentUser()?.email }}</span>
+      <span class="role-badge">{{ authService.currentUser()?.role }}</span>
+      <button type="button" (click)="logout()">Log out</button>
+    </div>
+  } @else {
+    <div class="links">
+      <a routerLink="/login" routerLinkActive="active">Log in</a>
+      <a routerLink="/register" routerLinkActive="active">Register</a>
+    </div>
+  }
+</nav>

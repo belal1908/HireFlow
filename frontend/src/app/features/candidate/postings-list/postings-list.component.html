@@ -1,0 +1,34 @@
+<div class="page">
+  <h1>Open Postings</h1>
+
+  @if (errorMessage()) {
+    <p class="error" role="alert">{{ errorMessage() }}</p>
+  }
+  @if (applyError()) {
+    <p class="error" role="alert">{{ applyError() }}</p>
+  }
+
+  @if (loading()) {
+    <p>Loading…</p>
+  } @else if (postings().length === 0) {
+    <p class="empty">No open postings right now — check back later.</p>
+  } @else {
+    <div class="cards">
+      @for (posting of postings(); track posting.id) {
+        <div class="card">
+          <h2>{{ posting.title }}</h2>
+          @if (posting.description) {
+            <p class="description">{{ posting.description }}</p>
+          }
+          @if (hasApplied(posting.id)) {
+            <button type="button" disabled class="applied-btn">Already applied</button>
+          } @else {
+            <button type="button" [disabled]="applyingId() === posting.id" (click)="apply(posting)">
+              {{ applyingId() === posting.id ? 'Applying…' : 'Apply' }}
+            </button>
+          }
+        </div>
+      }
+    </div>
+  }
+</div>

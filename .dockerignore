@@ -1,0 +1,10 @@
+# Keeps the backend image's build context small and fast - none of this is needed to build the
+# jar (target/ is rebuilt fresh inside the container; frontend/e2e have their own Dockerfiles or
+# aren't needed in this image at all).
+target/
+.git/
+.idea/
+*.log
+frontend/
+e2e/
+.env

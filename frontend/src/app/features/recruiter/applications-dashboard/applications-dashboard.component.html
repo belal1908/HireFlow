@@ -1,0 +1,108 @@
+<div class="page">
+  <h1>Applications</h1>
+
+  <div class="filters">
+    <label>
+      Posting
+      <select [(ngModel)]="filterPostingId" (ngModelChange)="load()">
+        <option [ngValue]="null">All postings</option>
+        @for (posting of postings(); track posting.id) {
+          <option [ngValue]="posting.id">{{ posting.title }}</option>
+        }
+      </select>
+    </label>
+
+    <label>
+      Status
+      <select [(ngModel)]="filterStatus" (ngModelChange)="load()">
+        <option [ngValue]="''">All statuses</option>
+        @for (status of allStatuses; track status) {
+          <option [ngValue]="status">{{ status }}</option>
+        }
+      </select>
+    </label>
+
+    <button type="button" class="clear-btn" (click)="clearFilters()">Clear filters</button>
+  </div>
+
+  @if (authService.hasRole('ADMIN')) {
+    <p class="notice">Signed in as ADMIN: read-only here — ADMIN has no transition rights over applications.</p>
+  }
+
+  @if (errorMessage()) {
+    <p class="error" role="alert">{{ errorMessage() }}</p>
+  }
+  @if (actionError()) {
+    <p class="error" role="alert">{{ actionError() }}</p>
+  }
+
+  @if (loading()) {
+    <p>Loading…</p>
+  } @else if (applications().length === 0) {
+    <p class="empty">No applications match these filters.</p>
+  } @else {
+    <table>
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Posting</th>
+          <th>Candidate</th>
+          <th>Status</th>
+          <th>Updated</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (app of applications(); track app.id) {
+          <tr [id]="'app-row-' + app.id">
+            <td>{{ app.id }}</td>
+            <td>{{ postingTitle(app.jobPostingId) }}</td>
+            <td>#{{ app.candidateId }}</td>
+            <td><span class="status-badge" [attr.data-status]="app.status">{{ app.status }}</span></td>
+            <td>{{ app.updatedAt | date: 'short' }}</td>
+            <td class="actions">
+              @if (authService.hasRole('RECRUITER')) {
+                @if (nextStatus(app.status)) {
+                  <button type="button" class="advance-btn" [disabled]="actingOnId() === app.id" (click)="advance(app)">
+                    Advance → {{ nextStatus(app.status) }}
+                  </button>
+                }
+                @if (!isTerminal(app.status)) {
+                  <button type="button" class="reject-btn" [disabled]="actingOnId() === app.id" (click)="reject(app)">
+                    Reject
+                  </button>
+                }
+              }
+              <button type="button" class="events-btn" (click)="toggleEvents(app.id)">
+                {{ expandedIds().has(app.id) ? 'Hide events' : 'View events' }}
+              </button>
+            </td>
+          </tr>
+          @if (expandedIds().has(app.id)) {
+            <tr class="events-row">
+              <td colspan="6">
+                @if (eventsLoadingId() === app.id) {
+                  <p class="muted">Loading audit trail…</p>
+                } @else if (eventsFor(app.id).length === 0) {
+                  <p class="muted">No events recorded.</p>
+                } @else {
+                  <ul class="events-list">
+                    @for (event of eventsFor(app.id); track event.id) {
+                      <li>
+                        <span class="event-transition">{{ event.fromStatus ?? '—' }} → {{ event.toStatus }}</span>
+                        <span class="event-meta">by user #{{ event.changedBy }} · {{ event.timestamp | date: 'medium' }}</span>
+                        @if (event.note) {
+                          <span class="event-note">"{{ event.note }}"</span>
+                        }
+                      </li>
+                    }
+                  </ul>
+                }
+              </td>
+            </tr>
+          }
+        }
+      </tbody>
+    </table>
+  }
+</div>

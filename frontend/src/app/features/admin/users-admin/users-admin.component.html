@@ -1,0 +1,60 @@
+<div class="page">
+  <h1>Manage Users</h1>
+  <p class="hint">Create RECRUITER/ADMIN accounts. Candidate accounts can only be created via self-registration.</p>
+
+  <form class="create-card" [formGroup]="createForm" (ngSubmit)="createUser()">
+    <h2>New recruiter/admin account</h2>
+    <label for="new-email">Email</label>
+    <input id="new-email" type="email" formControlName="email" autocomplete="off" />
+    @if (createForm.controls.email.invalid && createForm.controls.email.touched) {
+      <p class="field-error">Enter a valid email address.</p>
+    }
+
+    <label for="new-password">Password</label>
+    <input id="new-password" type="password" formControlName="password" autocomplete="new-password" />
+    @if (createForm.controls.password.invalid && createForm.controls.password.touched) {
+      <p class="field-error">Password must be at least 8 characters.</p>
+    }
+
+    <label for="new-role">Role</label>
+    <select id="new-role" formControlName="role">
+      <option value="RECRUITER">RECRUITER</option>
+      <option value="ADMIN">ADMIN</option>
+    </select>
+
+    @if (createError()) {
+      <p class="form-error" role="alert">{{ createError() }}</p>
+    }
+
+    <button type="submit" [disabled]="creating()">{{ creating() ? 'Creating…' : 'Create account' }}</button>
+  </form>
+
+  @if (errorMessage()) {
+    <p class="error" role="alert">{{ errorMessage() }}</p>
+  }
+
+  @if (loading()) {
+    <p>Loading…</p>
+  } @else if (users().length === 0) {
+    <p class="empty">No users yet.</p>
+  } @else {
+    <table>
+      <thead>
+        <tr>
+          <th>Email</th>
+          <th>Role</th>
+          <th>Created</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (user of users(); track user.id) {
+          <tr>
+            <td>{{ user.email }}</td>
+            <td><span class="role-badge" [attr.data-role]="user.role">{{ user.role }}</span></td>
+            <td>{{ user.createdAt | date: 'short' }}</td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  }
+</div>

@@ -1,0 +1,56 @@
+.nav-bar {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  padding: 0.75rem 1.5rem;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.brand {
+  font-weight: 700;
+  font-size: 1.1rem;
+}
+
+.links {
+  display: flex;
+  gap: 1rem;
+  flex: 1;
+}
+
+.links a {
+  text-decoration: none;
+  color: #444;
+  font-size: 0.92rem;
+}
+
+.links a.active {
+  color: #2454ff;
+  font-weight: 600;
+}
+
+.user-info {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  font-size: 0.85rem;
+  color: #555;
+}
+
+.role-badge {
+  padding: 0.15rem 0.5rem;
+  border-radius: 999px;
+  background: #eef1ff;
+  color: #2454ff;
+  font-weight: 600;
+  font-size: 0.72rem;
+  letter-spacing: 0.02em;
+}
+
+.user-info button {
+  padding: 0.35rem 0.7rem;
+  border: 1px solid #d0d0d0;
+  border-radius: 4px;
+  background: white;
+  cursor: pointer;
+  font-size: 0.82rem;
+}
