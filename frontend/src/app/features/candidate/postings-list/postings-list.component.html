@@ -15,23 +15,29 @@
   } @else {
     <div class="cards">
       @for (posting of postings(); track posting.id) {
-        <div class="card">
-          <h2>{{ posting.title }}</h2>
-          @if (posting.description) {
-            <p class="description">{{ posting.description }}</p>
-          }
-          @if (hasApplied(posting.id)) {
-            <button type="button" disabled class="applied-btn">Already applied</button>
-          } @else {
-            <button type="button" [disabled]="applyingId() === posting.id" (click)="apply(posting)">
-              {{ applyingId() === posting.id ? 'Applying…' : 'Apply' }}
-            </button>
-          }
-        </div>
+        <mat-card class="card" appearance="outlined">
+          <mat-card-header>
+            <mat-card-title>{{ posting.title }}</mat-card-title>
+          </mat-card-header>
+          <mat-card-content>
+            @if (posting.description) {
+              <p class="description">{{ posting.description }}</p>
+            }
+          </mat-card-content>
+          <mat-card-actions>
+            @if (hasApplied(posting.id)) {
+              <button mat-stroked-button type="button" disabled class="applied-btn">Already applied</button>
+            } @else {
+              <button mat-flat-button color="primary" type="button" [disabled]="applyingId() === posting.id" (click)="apply(posting)">
+                {{ applyingId() === posting.id ? 'Applying…' : 'Apply' }}
+              </button>
+            }
+          </mat-card-actions>
+        </mat-card>
       }
     </div>
     @if (hasNext()) {
-      <button type="button" class="load-more-btn" [disabled]="loadingMore()" (click)="loadMore()">
+      <button mat-stroked-button color="primary" type="button" class="load-more-btn" [disabled]="loadingMore()" (click)="loadMore()">
         {{ loadingMore() ? 'Loading…' : 'Load more' }}
       </button>
     }

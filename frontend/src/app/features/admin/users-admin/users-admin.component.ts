@@ -1,6 +1,11 @@
 import { Component, OnInit, inject, signal } from '@angular/core';
 import { DatePipe } from '@angular/common';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
+import { MatFormFieldModule } from '@angular/material/form-field';
+import { MatInputModule } from '@angular/material/input';
+import { MatSelectModule } from '@angular/material/select';
+import { MatButtonModule } from '@angular/material/button';
+import { MatTableModule } from '@angular/material/table';
 import { UserService } from '../../../core/services/user.service';
 import { UserResponse } from '../../../core/models/user.model';
 import { extractErrorMessage } from '../../../core/utils/api-error.util';
@@ -15,13 +20,24 @@ import { PagerComponent } from '../../../shared/pager/pager.component';
 @Component({
   selector: 'app-users-admin',
   standalone: true,
-  imports: [ReactiveFormsModule, DatePipe, PagerComponent],
+  imports: [
+    ReactiveFormsModule,
+    DatePipe,
+    PagerComponent,
+    MatFormFieldModule,
+    MatInputModule,
+    MatSelectModule,
+    MatButtonModule,
+    MatTableModule
+  ],
   templateUrl: './users-admin.component.html',
   styleUrl: './users-admin.component.css'
 })
 export class UsersAdminComponent implements OnInit {
   private readonly fb = inject(FormBuilder);
   private readonly userService = inject(UserService);
+
+  readonly displayedColumns = ['email', 'role', 'created'];
 
   readonly users = signal<UserResponse[]>([]);
   readonly loading = signal(true);

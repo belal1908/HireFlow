@@ -1,6 +1,11 @@
 import { Component, OnInit, inject, signal } from '@angular/core';
 import { DatePipe } from '@angular/common';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
+import { MatFormFieldModule } from '@angular/material/form-field';
+import { MatInputModule } from '@angular/material/input';
+import { MatSelectModule } from '@angular/material/select';
+import { MatButtonModule } from '@angular/material/button';
+import { MatTableModule } from '@angular/material/table';
 import { PostingService } from '../../../core/services/posting.service';
 import { PostingResponse, PostingStatus } from '../../../core/models/posting.model';
 import { extractErrorMessage } from '../../../core/utils/api-error.util';
@@ -9,13 +14,24 @@ import { PagerComponent } from '../../../shared/pager/pager.component';
 @Component({
   selector: 'app-postings-admin',
   standalone: true,
-  imports: [ReactiveFormsModule, DatePipe, PagerComponent],
+  imports: [
+    ReactiveFormsModule,
+    DatePipe,
+    PagerComponent,
+    MatFormFieldModule,
+    MatInputModule,
+    MatSelectModule,
+    MatButtonModule,
+    MatTableModule
+  ],
   templateUrl: './postings-admin.component.html',
   styleUrl: './postings-admin.component.css'
 })
 export class PostingsAdminComponent implements OnInit {
   private readonly fb = inject(FormBuilder);
   private readonly postingService = inject(PostingService);
+
+  readonly displayedColumns = ['title', 'status', 'created', 'actions'];
 
   readonly postings = signal<PostingResponse[]>([]);
   readonly loading = signal(true);

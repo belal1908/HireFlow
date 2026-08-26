@@ -29,6 +29,9 @@ GitHub Actions CI workflow. See "End-to-end tests", "Full stack via Docker Compo
 
 **Frontend**
 - Angular 18+, standalone components throughout (no NgModules)
+- Angular Material (M3 "Azure/Blue" prebuilt theme) for the UI — forms, buttons, the postings/
+  applications tables (native `<table mat-table>`, not the flex-based CDK table, so the audit-trail
+  expandable row and `colspan` still work), posting/kanban cards, the toolbar, and pagination
 - Functional route guards (`CanActivateFn`) and a functional `HttpInterceptorFn` for auth
 - RxJS for the token-refresh coordination; no state-management library — not needed at this scope
 - anime.js v4 for motion that tracks the pipeline metaphor, centralised in one module (see below)
@@ -194,6 +197,18 @@ Angular patterns the PRD calls out, not to be a design showcase:
   is a real navigation-blocking guard, not hidden UI — a direct URL hit by a wrong-role user never
   activates the component. Both branches are unit-tested (`role.guard.spec.ts`,
   `auth.guard.spec.ts`).
+
+**UI: Angular Material.** The original project plan specified Angular Material; it was added in a
+later pass (`ng add @angular/material`, M3 "Azure/Blue" prebuilt theme, applied globally via
+`angular.json` — no separate hand-rolled color overrides on top of it). Forms use
+`MatFormField`/`MatInput`/`MatSelect`; actions use `mat-button`/`mat-raised-button`/
+`mat-icon-button` variants; the postings and applications tables use the native `<table mat-table>`
+directive form specifically (not the CDK's flex-based table) so the recruiter dashboard's
+expandable audit-trail row can still use a real `colspan` on a real `<tr>`; posting/kanban cards use
+`MatCard`; the nav bar uses `MatToolbar`; pagination uses `MatPaginator`. Two things were
+deliberately left untouched: `StatusBadgeComponent` (its DRY, `data-status`-keyed color treatment
+in `styles.css` predates Material and doesn't need it) and the kanban board's column/scroll-snap
+layout (custom flex CSS suits it better than forcing it into a Material layout component).
 
 Feature areas, one route tree per role:
 - `features/auth` — login, register (registration always creates a `CANDIDATE`; the form says so)

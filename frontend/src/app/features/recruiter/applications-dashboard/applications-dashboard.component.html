@@ -2,31 +2,47 @@
   <h1>Applications</h1>
 
   <div class="filters">
-    <label>
-      Posting
-      <select [(ngModel)]="filterPostingId" (ngModelChange)="onFilterChange()">
-        <option [ngValue]="null">All postings</option>
+    <mat-form-field appearance="outline" class="filter-field">
+      <mat-label>Posting</mat-label>
+      <mat-select [(ngModel)]="filterPostingId" (ngModelChange)="onFilterChange()">
+        <mat-option [value]="null">All postings</mat-option>
         @for (posting of postings(); track posting.id) {
-          <option [ngValue]="posting.id">{{ posting.title }}</option>
+          <mat-option [value]="posting.id">{{ posting.title }}</mat-option>
         }
-      </select>
-    </label>
+      </mat-select>
+    </mat-form-field>
 
-    <label>
-      Status
-      <select [(ngModel)]="filterStatus" (ngModelChange)="onFilterChange()">
-        <option [ngValue]="''">All statuses</option>
+    <mat-form-field appearance="outline" class="filter-field">
+      <mat-label>Status</mat-label>
+      <mat-select [(ngModel)]="filterStatus" (ngModelChange)="onFilterChange()">
+        <mat-option [value]="''">All statuses</mat-option>
         @for (status of allStatuses; track status) {
-          <option [ngValue]="status">{{ status }}</option>
+          <mat-option [value]="status">{{ status }}</mat-option>
         }
-      </select>
-    </label>
+      </mat-select>
+    </mat-form-field>
 
-    <button type="button" class="clear-btn" (click)="clearFilters()">Clear filters</button>
+    <button mat-stroked-button type="button" class="clear-btn" (click)="clearFilters()">Clear filters</button>
 
     <div class="view-toggle" role="group" aria-label="View mode">
-      <button type="button" [class.active]="viewMode() === 'table'" (click)="setViewMode('table')">Table</button>
-      <button type="button" [class.active]="viewMode() === 'kanban'" (click)="setViewMode('kanban')">Kanban</button>
+      <button
+        mat-flat-button
+        type="button"
+        [color]="viewMode() === 'table' ? 'primary' : undefined"
+        [class.active]="viewMode() === 'table'"
+        (click)="setViewMode('table')"
+      >
+        Table
+      </button>
+      <button
+        mat-flat-button
+        type="button"
+        [color]="viewMode() === 'kanban' ? 'primary' : undefined"
+        [class.active]="viewMode() === 'kanban'"
+        (click)="setViewMode('kanban')"
+      >
+        Kanban
+      </button>
     </div>
   </div>
 
@@ -46,84 +62,101 @@
   } @else if (applications().length === 0) {
     <p class="empty">No applications match these filters.</p>
   } @else if (viewMode() === 'table') {
-    <table>
-      <thead>
-        <tr>
-          <th>ID</th>
-          <th>Posting</th>
-          <th>Candidate</th>
-          <th>Status</th>
-          <th>Updated</th>
-          <th>Resume</th>
-          <th>Actions</th>
-        </tr>
-      </thead>
-      <tbody>
-        @for (app of applications(); track app.id) {
-          <tr [id]="'app-row-' + app.id">
-            <td>{{ app.id }}</td>
-            <td>{{ postingTitle(app.jobPostingId) }}</td>
-            <td>#{{ app.candidateId }}</td>
-            <td><app-status-badge [status]="app.status" /></td>
-            <td>{{ app.updatedAt | date: 'short' }}</td>
-            <td>
-              @if (app.resumeFilename) {
-                <button
-                  type="button"
-                  class="resume-download-btn"
-                  [disabled]="downloadingResumeId() === app.id"
-                  (click)="downloadResume(app)"
-                >
-                  {{ downloadingResumeId() === app.id ? 'Downloading…' : 'Download' }}
-                </button>
-              } @else {
-                <span class="muted">None</span>
-              }
-            </td>
-            <td class="actions">
-              @if (authService.hasRole('RECRUITER')) {
-                @if (nextStatus(app.status)) {
-                  <button type="button" class="advance-btn" [disabled]="actingOnId() === app.id" (click)="advance(app)">
-                    Advance → {{ nextStatus(app.status) }}
-                  </button>
-                }
-                @if (!isTerminal(app.status)) {
-                  <button type="button" class="reject-btn" [disabled]="actingOnId() === app.id" (click)="reject(app)">
-                    Reject
-                  </button>
-                }
-              }
-              <button type="button" class="events-btn" (click)="toggleEvents(app.id)">
-                {{ expandedIds().has(app.id) ? 'Hide events' : 'View events' }}
+    <div class="table-scroll">
+      <table mat-table [dataSource]="applications()" multiTemplateDataRows class="applications-table">
+        <ng-container matColumnDef="id">
+          <th mat-header-cell *matHeaderCellDef>ID</th>
+          <td mat-cell *matCellDef="let app">{{ app.id }}</td>
+        </ng-container>
+
+        <ng-container matColumnDef="posting">
+          <th mat-header-cell *matHeaderCellDef>Posting</th>
+          <td mat-cell *matCellDef="let app">{{ postingTitle(app.jobPostingId) }}</td>
+        </ng-container>
+
+        <ng-container matColumnDef="candidate">
+          <th mat-header-cell *matHeaderCellDef>Candidate</th>
+          <td mat-cell *matCellDef="let app">#{{ app.candidateId }}</td>
+        </ng-container>
+
+        <ng-container matColumnDef="status">
+          <th mat-header-cell *matHeaderCellDef>Status</th>
+          <td mat-cell *matCellDef="let app"><app-status-badge [status]="app.status" /></td>
+        </ng-container>
+
+        <ng-container matColumnDef="updated">
+          <th mat-header-cell *matHeaderCellDef>Updated</th>
+          <td mat-cell *matCellDef="let app">{{ app.updatedAt | date: 'short' }}</td>
+        </ng-container>
+
+        <ng-container matColumnDef="resume">
+          <th mat-header-cell *matHeaderCellDef>Resume</th>
+          <td mat-cell *matCellDef="let app">
+            @if (app.resumeFilename) {
+              <button
+                mat-button
+                color="primary"
+                type="button"
+                class="resume-download-btn"
+                [disabled]="downloadingResumeId() === app.id"
+                (click)="downloadResume(app)"
+              >
+                {{ downloadingResumeId() === app.id ? 'Downloading…' : 'Download' }}
               </button>
-            </td>
-          </tr>
-          @if (expandedIds().has(app.id)) {
-            <tr class="events-row">
-              <td colspan="7">
-                @if (eventsLoadingId() === app.id) {
-                  <p class="muted">Loading audit trail…</p>
-                } @else if (eventsFor(app.id).length === 0) {
-                  <p class="muted">No events recorded.</p>
-                } @else {
-                  <ul class="events-list" [id]="'events-' + app.id">
-                    @for (event of eventsFor(app.id); track event.id) {
-                      <li>
-                        <span class="event-transition">{{ event.fromStatus ?? '—' }} → {{ event.toStatus }}</span>
-                        <span class="event-meta">by user #{{ event.changedBy }} · {{ event.timestamp | date: 'medium' }}</span>
-                        @if (event.note) {
-                          <span class="event-note">"{{ event.note }}"</span>
-                        }
-                      </li>
+            } @else {
+              <span class="muted">None</span>
+            }
+          </td>
+        </ng-container>
+
+        <ng-container matColumnDef="actions">
+          <th mat-header-cell *matHeaderCellDef>Actions</th>
+          <td mat-cell *matCellDef="let app" class="actions">
+            @if (authService.hasRole('RECRUITER')) {
+              @if (nextStatus(app.status)) {
+                <button mat-flat-button color="primary" type="button" class="advance-btn" [disabled]="actingOnId() === app.id" (click)="advance(app)">
+                  Advance → {{ nextStatus(app.status) }}
+                </button>
+              }
+              @if (!isTerminal(app.status)) {
+                <button mat-stroked-button color="warn" type="button" class="reject-btn" [disabled]="actingOnId() === app.id" (click)="reject(app)">
+                  Reject
+                </button>
+              }
+            }
+            <button mat-button type="button" class="events-btn" (click)="toggleEvents(app.id)">
+              {{ expandedIds().has(app.id) ? 'Hide events' : 'View events' }}
+            </button>
+          </td>
+        </ng-container>
+
+        <ng-container matColumnDef="events">
+          <td mat-cell *matCellDef="let app" [attr.colspan]="displayedColumns.length">
+            @if (eventsLoadingId() === app.id) {
+              <p class="muted">Loading audit trail…</p>
+            } @else if (eventsFor(app.id).length === 0) {
+              <p class="muted">No events recorded.</p>
+            } @else {
+              <ul class="events-list" [id]="'events-' + app.id">
+                @for (event of eventsFor(app.id); track event.id) {
+                  <li>
+                    <span class="event-transition">{{ event.fromStatus ?? '—' }} → {{ event.toStatus }}</span>
+                    <span class="event-meta">by user #{{ event.changedBy }} · {{ event.timestamp | date: 'medium' }}</span>
+                    @if (event.note) {
+                      <span class="event-note">"{{ event.note }}"</span>
                     }
-                  </ul>
+                  </li>
                 }
-              </td>
-            </tr>
-          }
-        }
-      </tbody>
-    </table>
+              </ul>
+            }
+          </td>
+        </ng-container>
+
+        <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+        <tr mat-row *matRowDef="let app; columns: displayedColumns;" [id]="'app-row-' + app.id"></tr>
+        <tr mat-row *matRowDef="let app; columns: ['events']; when: isExpandedRow" class="events-row"></tr>
+      </table>
+    </div>
     <app-pager
       [page]="page()"
       [totalPages]="totalPages()"
@@ -144,12 +177,14 @@
           </div>
           <div class="kanban-cards">
             @for (app of applicationsByStatus(status); track app.id) {
-              <div class="kanban-card" [id]="'app-row-' + app.id">
+              <mat-card appearance="outlined" class="kanban-card" [id]="'app-row-' + app.id">
                 <div class="kanban-card-title">{{ postingTitle(app.jobPostingId) }}</div>
                 <div class="kanban-card-meta">Candidate #{{ app.candidateId }} · {{ app.updatedAt | date: 'short' }}</div>
                 <app-pipeline-progress [status]="app.status" />
                 @if (app.resumeFilename) {
                   <button
+                    mat-button
+                    color="primary"
                     type="button"
                     class="resume-download-btn"
                     [disabled]="downloadingResumeId() === app.id"
@@ -161,17 +196,17 @@
                 <div class="kanban-card-actions">
                   @if (authService.hasRole('RECRUITER')) {
                     @if (nextStatus(app.status)) {
-                      <button type="button" class="advance-btn" [disabled]="actingOnId() === app.id" (click)="advance(app)">
+                      <button mat-flat-button color="primary" type="button" class="advance-btn" [disabled]="actingOnId() === app.id" (click)="advance(app)">
                         Advance → {{ nextStatus(app.status) }}
                       </button>
                     }
                     @if (!isTerminal(app.status)) {
-                      <button type="button" class="reject-btn" [disabled]="actingOnId() === app.id" (click)="reject(app)">
+                      <button mat-stroked-button color="warn" type="button" class="reject-btn" [disabled]="actingOnId() === app.id" (click)="reject(app)">
                         Reject
                       </button>
                     }
                   }
-                  <button type="button" class="events-btn" (click)="toggleEvents(app.id)">
+                  <button mat-button type="button" class="events-btn" (click)="toggleEvents(app.id)">
                     {{ expandedIds().has(app.id) ? 'Hide events' : 'View events' }}
                   </button>
                 </div>
@@ -193,7 +228,7 @@
                     }
                   </div>
                 }
-              </div>
+              </mat-card>
             } @empty {
               <p class="kanban-empty">No applications</p>
             }

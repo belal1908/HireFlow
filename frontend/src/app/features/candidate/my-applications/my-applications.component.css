@@ -23,53 +23,20 @@ h1 {
   color: #666;
 }
 
-table {
+.applications-table {
   width: 100%;
-  border-collapse: collapse;
-  font-size: 0.88rem;
-}
-
-th,
-td {
-  text-align: left;
-  padding: 0.6rem 0.5rem;
-  border-bottom: 1px solid #eee;
-}
-
-th {
-  color: #666;
-  font-weight: 600;
-  font-size: 0.78rem;
-  text-transform: uppercase;
-  letter-spacing: 0.03em;
 }
 
 .resume-cell {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 0.25rem;
-  min-width: 140px;
+  min-width: 160px;
 }
 
 .resume-download-btn {
-  background: none;
-  border: none;
-  color: #2454ff;
-  text-decoration: underline;
-  cursor: pointer;
-  padding: 0;
-  font-size: 0.82rem;
-  text-align: left;
-  max-width: 160px;
+  max-width: 180px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-.resume-download-btn:disabled {
-  opacity: 0.6;
-  cursor: default;
+  display: block;
 }
 
 .resume-meta {
@@ -77,64 +44,22 @@ th {
   font-size: 0.72rem;
 }
 
-.resume-upload-label {
-  position: relative;
-  display: inline-block;
-  padding: 0.25rem 0.55rem;
-  border: 1px solid #d0d0d0;
-  border-radius: 4px;
-  font-size: 0.75rem;
-  color: #444;
-  cursor: pointer;
-  background: white;
-}
-
-.resume-upload-label:hover {
-  background: #f5f5f5;
-}
-
-.resume-file-input {
-  position: absolute;
-  inset: 0;
-  opacity: 0;
-  cursor: pointer;
-  width: 100%;
-  height: 100%;
+.resume-upload-btn {
+  margin-top: 0.25rem;
 }
 
 .field-error {
   color: #b3261e;
   font-size: 0.72rem;
-  margin: 0;
+  margin: 0.25rem 0 0;
   max-width: 160px;
 }
 
 .actions {
   display: flex;
   gap: 0.5rem;
-}
-
-.actions button {
-  padding: 0.35rem 0.65rem;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 0.82rem;
-}
-
-.accept-btn {
-  background: #1e7e34;
-  color: white;
-}
-
-.withdraw-btn {
-  background: #b3261e;
-  color: white;
-}
-
-.actions button:disabled {
-  opacity: 0.6;
-  cursor: default;
+  align-items: center;
+  flex-wrap: wrap;
 }
 
 .muted {

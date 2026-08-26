@@ -1,6 +1,8 @@
 import { Component, OnInit, signal } from '@angular/core';
 import { DatePipe } from '@angular/common';
 import { forkJoin } from 'rxjs';
+import { MatTableModule } from '@angular/material/table';
+import { MatButtonModule } from '@angular/material/button';
 import { ApplicationService } from '../../../core/services/application.service';
 import { PostingService } from '../../../core/services/posting.service';
 import { ApplicationResponse, TERMINAL_STATUSES } from '../../../core/models/application.model';
@@ -12,11 +14,13 @@ import { PipelineProgressComponent } from '../../../shared/pipeline-progress/pip
 @Component({
   selector: 'app-my-applications',
   standalone: true,
-  imports: [DatePipe, StatusBadgeComponent, PipelineProgressComponent],
+  imports: [DatePipe, StatusBadgeComponent, PipelineProgressComponent, MatTableModule, MatButtonModule],
   templateUrl: './my-applications.component.html',
   styleUrl: './my-applications.component.css'
 })
 export class MyApplicationsComponent implements OnInit {
+  readonly displayedColumns = ['posting', 'status', 'pipeline', 'applied', 'updated', 'resume', 'actions'];
+
   readonly applications = signal<ApplicationResponse[]>([]);
   readonly postingTitles = signal<Map<number, string>>(new Map());
   readonly loading = signal(true);

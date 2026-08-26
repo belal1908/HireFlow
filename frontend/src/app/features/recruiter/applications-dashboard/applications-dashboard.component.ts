@@ -1,6 +1,11 @@
-import { Component, OnInit, signal } from '@angular/core';
+import { Component, OnInit, signal, ViewChild } from '@angular/core';
 import { DatePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { MatTable, MatTableModule } from '@angular/material/table';
+import { MatFormFieldModule } from '@angular/material/form-field';
+import { MatSelectModule } from '@angular/material/select';
+import { MatButtonModule } from '@angular/material/button';
+import { MatCardModule } from '@angular/material/card';
 import { AuthService } from '../../../core/services/auth.service';
 import { ApplicationService } from '../../../core/services/application.service';
 import { PostingService } from '../../../core/services/posting.service';
@@ -33,13 +38,39 @@ type ViewMode = 'table' | 'kanban';
 @Component({
   selector: 'app-applications-dashboard',
   standalone: true,
-  imports: [FormsModule, DatePipe, StatusBadgeComponent, PagerComponent, PipelineProgressComponent],
+  imports: [
+    FormsModule,
+    DatePipe,
+    StatusBadgeComponent,
+    PagerComponent,
+    PipelineProgressComponent,
+    MatTableModule,
+    MatFormFieldModule,
+    MatSelectModule,
+    MatButtonModule,
+    MatCardModule
+  ],
   templateUrl: './applications-dashboard.component.html',
   styleUrl: './applications-dashboard.component.css'
 })
 export class ApplicationsDashboardComponent implements OnInit {
   readonly allStatuses = ALL_STATUSES;
   readonly pageSize = 20;
+
+  /** Columns for the native `<table mat-table>` — the audit-trail detail row is rendered via a
+   *  separate matRowDef (see `isExpandedRow`) and isn't part of this list, matching the
+   *  Angular Material "expandable rows" table example. */
+  readonly displayedColumns = ['id', 'posting', 'candidate', 'status', 'updated', 'resume', 'actions'];
+
+  /**
+   * CdkTable only re-evaluates `matRowDef`'s `when` predicate when it diffs a *new* dataSource
+   * array reference — toggling `expandedIds` (a separate signal from `applications`) doesn't
+   * change that reference, so without an explicit `renderRows()` call the audit-trail detail row
+   * would never actually appear/disappear despite the "View events"/"Hide events" label (an
+   * ordinary interpolation) flipping correctly. `toggleEvents()` below calls `renderRows()` after
+   * updating `expandedIds` to force CdkTable to re-check `isExpandedRow` for every row.
+   */
+  @ViewChild(MatTable) table?: MatTable<ApplicationResponse>;
 
   readonly applications = signal<ApplicationResponse[]>([]);
   readonly postings = signal<PostingResponse[]>([]);
@@ -226,15 +257,28 @@ export class ApplicationsDashboardComponent implements OnInit {
     });
   }
 
+  /**
+   * matRowDef `when` predicate for the audit-trail detail row: renders that row for a given
+   * application only while it's expanded, so the DOM keeps the same "one <tr class="events-row">
+   * injected right after its data row, only when expanded" shape the e2e suite and the CSS both
+   * depend on — not an always-present row that's merely hidden.
+   */
+  isExpandedRow = (_index: number, app: ApplicationResponse): boolean => this.expandedIds().has(app.id);
+
   toggleEvents(applicationId: number): void {
     const expanded = new Set(this.expandedIds());
     if (expanded.has(applicationId)) {
       expanded.delete(applicationId);
       this.expandedIds.set(expanded);
+      this.table?.renderRows();
       return;
     }
     expanded.add(applicationId);
     this.expandedIds.set(expanded);
+    // See the `table` ViewChild's doc comment: expandedIds changing doesn't touch the
+    // dataSource array CdkTable actually diffs, so the `isExpandedRow`-gated detail row needs an
+    // explicit renderRows() to be inserted/removed — it won't happen on its own.
+    this.table?.renderRows();
     this.loadEvents(applicationId);
   }
 

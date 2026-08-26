@@ -1,6 +1,8 @@
 import { Component, OnInit, signal } from '@angular/core';
 import { Router } from '@angular/router';
 import { forkJoin } from 'rxjs';
+import { MatCardModule } from '@angular/material/card';
+import { MatButtonModule } from '@angular/material/button';
 import { PostingService } from '../../../core/services/posting.service';
 import { ApplicationService } from '../../../core/services/application.service';
 import { PostingResponse } from '../../../core/models/posting.model';
@@ -10,7 +12,7 @@ import { extractErrorMessage } from '../../../core/utils/api-error.util';
 @Component({
   selector: 'app-postings-list',
   standalone: true,
-  imports: [],
+  imports: [MatCardModule, MatButtonModule],
   templateUrl: './postings-list.component.html',
   styleUrl: './postings-list.component.css'
 })

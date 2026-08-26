@@ -16,72 +16,97 @@
   } @else if (applications().length === 0) {
     <p class="empty">You haven't applied to anything yet.</p>
   } @else {
-    <table>
-      <thead>
-        <tr>
-          <th>Posting</th>
-          <th>Status</th>
-          <th class="pipeline-col">Pipeline</th>
-          <th>Applied</th>
-          <th>Updated</th>
-          <th>Resume</th>
-          <th>Actions</th>
-        </tr>
-      </thead>
-      <tbody>
-        @for (app of applications(); track app.id) {
-          <tr [id]="'app-row-' + app.id">
-            <td>{{ postingTitle(app.jobPostingId) }}</td>
-            <td><app-status-badge [status]="app.status" /></td>
-            <td class="pipeline-col"><app-pipeline-progress [status]="app.status" /></td>
-            <td>{{ app.createdAt | date: 'short' }}</td>
-            <td>{{ app.updatedAt | date: 'short' }}</td>
-            <td class="resume-cell">
-              @if (app.resumeFilename) {
-                <button
-                  type="button"
-                  class="resume-download-btn"
-                  [disabled]="downloadingId() === app.id"
-                  (click)="downloadResume(app)"
-                >
-                  {{ downloadingId() === app.id ? 'Downloading…' : app.resumeFilename }}
-                </button>
-                <span class="resume-meta">{{ formatSize(app.resumeSizeBytes) }}</span>
-              } @else {
-                <span class="muted">No resume</span>
-              }
-              <label class="resume-upload-label">
-                <input
-                  type="file"
-                  accept="application/pdf"
-                  class="resume-file-input"
-                  [disabled]="uploadingId() === app.id"
-                  (change)="onResumeFileSelected(app, $event)"
-                />
-                {{ uploadingId() === app.id ? 'Uploading…' : app.resumeFilename ? 'Replace' : 'Upload PDF' }}
-              </label>
-              @if (uploadErrorId() === app.id && uploadError()) {
-                <p class="field-error">{{ uploadError() }}</p>
-              }
-            </td>
-            <td class="actions">
-              @if (app.status === 'OFFER') {
-                <button type="button" class="accept-btn" [disabled]="actingOnId() === app.id" (click)="acceptOffer(app)">
-                  Accept offer
-                </button>
-              }
-              @if (!isTerminal(app.status)) {
-                <button type="button" class="withdraw-btn" [disabled]="actingOnId() === app.id" (click)="withdraw(app)">
-                  Withdraw
-                </button>
-              }
-              @if (isTerminal(app.status)) {
-                <span class="muted">No actions available</span>
-              }
-            </td>
-          </tr>
-        }
-      </tbody>
-    </table>
+    <div class="table-scroll">
+      <table mat-table [dataSource]="applications()" class="applications-table">
+        <ng-container matColumnDef="posting">
+          <th mat-header-cell *matHeaderCellDef>Posting</th>
+          <td mat-cell *matCellDef="let app">{{ postingTitle(app.jobPostingId) }}</td>
+        </ng-container>
+
+        <ng-container matColumnDef="status">
+          <th mat-header-cell *matHeaderCellDef>Status</th>
+          <td mat-cell *matCellDef="let app"><app-status-badge [status]="app.status" /></td>
+        </ng-container>
+
+        <ng-container matColumnDef="pipeline">
+          <th mat-header-cell *matHeaderCellDef class="pipeline-col">Pipeline</th>
+          <td mat-cell *matCellDef="let app" class="pipeline-col"><app-pipeline-progress [status]="app.status" /></td>
+        </ng-container>
+
+        <ng-container matColumnDef="applied">
+          <th mat-header-cell *matHeaderCellDef>Applied</th>
+          <td mat-cell *matCellDef="let app">{{ app.createdAt | date: 'short' }}</td>
+        </ng-container>
+
+        <ng-container matColumnDef="updated">
+          <th mat-header-cell *matHeaderCellDef>Updated</th>
+          <td mat-cell *matCellDef="let app">{{ app.updatedAt | date: 'short' }}</td>
+        </ng-container>
+
+        <ng-container matColumnDef="resume">
+          <th mat-header-cell *matHeaderCellDef>Resume</th>
+          <td mat-cell *matCellDef="let app" class="resume-cell">
+            @if (app.resumeFilename) {
+              <button
+                mat-button
+                color="primary"
+                type="button"
+                class="resume-download-btn"
+                [disabled]="downloadingId() === app.id"
+                (click)="downloadResume(app)"
+              >
+                {{ downloadingId() === app.id ? 'Downloading…' : app.resumeFilename }}
+              </button>
+              <span class="resume-meta">{{ formatSize(app.resumeSizeBytes) }}</span>
+            } @else {
+              <span class="muted">No resume</span>
+            }
+            <input
+              #fileInput
+              type="file"
+              accept="application/pdf"
+              class="resume-file-input"
+              hidden
+              [disabled]="uploadingId() === app.id"
+              (change)="onResumeFileSelected(app, $event)"
+            />
+            <button
+              mat-stroked-button
+              type="button"
+              class="resume-upload-btn"
+              [disabled]="uploadingId() === app.id"
+              (click)="fileInput.click()"
+            >
+              {{ uploadingId() === app.id ? 'Uploading…' : app.resumeFilename ? 'Replace' : 'Upload PDF' }}
+            </button>
+            @if (uploadErrorId() === app.id && uploadError()) {
+              <p class="field-error">{{ uploadError() }}</p>
+            }
+          </td>
+        </ng-container>
+
+        <ng-container matColumnDef="actions">
+          <th mat-header-cell *matHeaderCellDef>Actions</th>
+          <td mat-cell *matCellDef="let app" class="actions">
+            @if (app.status === 'OFFER') {
+              <button mat-flat-button color="primary" type="button" class="accept-btn" [disabled]="actingOnId() === app.id" (click)="acceptOffer(app)">
+                Accept offer
+              </button>
+            }
+            @if (!isTerminal(app.status)) {
+              <button mat-stroked-button color="warn" type="button" class="withdraw-btn" [disabled]="actingOnId() === app.id" (click)="withdraw(app)">
+                Withdraw
+              </button>
+            }
+            @if (isTerminal(app.status)) {
+              <span class="muted">No actions available</span>
+            }
+          </td>
+        </ng-container>
+
+        <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+        <tr mat-row *matRowDef="let app; columns: displayedColumns;" [id]="'app-row-' + app.id"></tr>
+      </table>
+    </div>
   }
 </div>

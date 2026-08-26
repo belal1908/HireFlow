@@ -26,45 +26,19 @@
   color: #666;
 }
 
-label {
-  font-size: 0.85rem;
-  font-weight: 600;
-  margin-top: 0.5rem;
+.auth-card mat-form-field {
+  width: 100%;
 }
 
-input {
-  padding: 0.5rem 0.6rem;
-  border: 1px solid #b8b8b8;
-  border-radius: 4px;
-  font-size: 1rem;
-}
-
-button {
-  margin-top: 1.25rem;
-  padding: 0.6rem;
-  border: none;
-  border-radius: 4px;
-  background: #2454ff;
-  color: white;
-  font-size: 1rem;
-  cursor: pointer;
-}
-
-button:disabled {
-  opacity: 0.6;
-  cursor: default;
-}
-
-.field-error {
-  color: #b3261e;
-  font-size: 0.78rem;
-  margin: 0;
+.auth-card button[mat-flat-button] {
+  margin-top: 0.75rem;
+  width: 100%;
 }
 
 .form-error {
   color: #b3261e;
   font-size: 0.85rem;
-  margin: 0.75rem 0 0;
+  margin: 0.25rem 0 0;
 }
 
 .switch-link {
