@@ -368,6 +368,35 @@ a different port.
 docker compose up -d
 ```
 
+**Running without Docker/Colima.** On macOS, Docker Desktop isn't required — this project runs
+under [Colima](https://github.com/abiosoft/colima) instead (a lighter Docker CLI-compatible VM) —
+but Colima itself isn't free: its VM idles at real CPU/memory even doing nothing, and if it
+crashes uncleanly the VM process can be left running and consuming that CPU even after `colima
+stop` reports success (worth checking `ps aux | grep Virtualization` if things feel slow).
+
+Not every workflow here actually needs a container runtime:
+
+| Needs Docker/Colima | Doesn't |
+|---|---|
+| `mvn test` (Testcontainers integration tests) | Backend unit tests (`TransitionValidator` etc.) |
+| `docker compose --profile full up` (containerized stack) | `ng test`, `ng build` |
+| | `mvn spring-boot:run` + `ng serve` + e2e — **if** Postgres comes from somewhere else |
+
+For that last row, point at a native Postgres instead of the Colima-hosted container:
+
+```bash
+# one-time setup, against whatever Postgres you already have (Homebrew, etc.):
+psql -d postgres -c "CREATE ROLE hireflow LOGIN PASSWORD 'hireflow';"
+createdb -O hireflow hireflow
+
+cp .env.native.example .env   # points DB_URL at localhost:5432 instead of the Colima container
+```
+
+Then `mvn spring-boot:run`, `ng serve`, and the e2e suite (`DB_HOST_PORT=5432 npx playwright test`
+— it seeds RECRUITER/ADMIN test accounts via direct SQL, so it needs to know which port to
+connect to) all work with Colima never started. Switch back to `.env.example` before running
+`mvn test` or the full compose profile — those still need the real thing.
+
 ### 3. Run the app
 
 ```bash
