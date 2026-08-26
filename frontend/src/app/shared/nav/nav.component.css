@@ -54,3 +54,41 @@
   cursor: pointer;
   font-size: 0.82rem;
 }
+
+/* ------------------------------------------------------------------------------------------
+ * Responsive nav
+ *
+ * The bar was a single non-wrapping flex row, so on a phone the brand and the user's email
+ * were clipped at both ends and the whole page picked up a horizontal scroll. Wrapping into
+ * two rows keeps every control reachable without hiding anything behind a hamburger menu -
+ * there are only ever a handful of links here, so a menu would add interaction cost for no
+ * real gain.
+ * ---------------------------------------------------------------------------------------- */
+@media (max-width: 720px) {
+  .nav-bar {
+    flex-wrap: wrap;
+    gap: 0.6rem 1rem;
+    padding: 0.6rem 0.9rem;
+  }
+
+  .links {
+    /* Take the full second row, so the links aren't squeezed against the brand. */
+    flex: 1 0 100%;
+    order: 3;
+    gap: 1.1rem;
+  }
+
+  .user-info {
+    margin-left: auto;
+    font-size: 0.8rem;
+  }
+
+  /* The email is the least important thing here and the longest - truncate it rather than let
+   * it force the row wider than the viewport. */
+  .user-info .email {
+    max-width: 42vw;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}

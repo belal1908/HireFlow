@@ -151,8 +151,8 @@ class ApplicationIntegrationTest extends AbstractIntegrationTest {
                         .header("Authorization", bearerToken(recruiter))
                         .param("postingId", String.valueOf(postingA.getId())))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[?(@.id == " + applicationA + ")]").exists())
-                .andExpect(jsonPath("$[?(@.jobPostingId == " + postingB.getId() + ")]").doesNotExist());
+                .andExpect(jsonPath("$.content[?(@.id == " + applicationA + ")]").exists())
+                .andExpect(jsonPath("$.content[?(@.jobPostingId == " + postingB.getId() + ")]").doesNotExist());
     }
 
     @Test
@@ -179,6 +179,58 @@ class ApplicationIntegrationTest extends AbstractIntegrationTest {
 
         mockMvc.perform(get("/api/applications").header("Authorization", bearerToken(admin)))
                 .andExpect(status().isOk());
+    }
+
+    // ---- Pagination (combines with the existing postingId filter) -------------------------
+
+    @Test
+    void listAll_pagination_combinesWithPostingFilter_andReturnsCorrectMetadata() throws Exception {
+        User admin = createUser(Role.ADMIN);
+        User recruiter = createUser(Role.RECRUITER);
+        JobPosting posting = createPosting(admin, PostingStatus.OPEN);
+        // A unique posting means the postingId filter scopes these 3 applications exactly,
+        // independent of however much other data the shared test DB already has.
+        apply(createUser(Role.CANDIDATE), posting);
+        apply(createUser(Role.CANDIDATE), posting);
+        apply(createUser(Role.CANDIDATE), posting);
+
+        mockMvc.perform(get("/api/applications")
+                        .header("Authorization", bearerToken(recruiter))
+                        .param("postingId", String.valueOf(posting.getId()))
+                        .param("page", "0")
+                        .param("size", "2"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content.length()").value(2))
+                .andExpect(jsonPath("$.page").value(0))
+                .andExpect(jsonPath("$.size").value(2))
+                .andExpect(jsonPath("$.totalElements").value(3))
+                .andExpect(jsonPath("$.totalPages").value(2))
+                .andExpect(jsonPath("$.hasNext").value(true));
+
+        mockMvc.perform(get("/api/applications")
+                        .header("Authorization", bearerToken(recruiter))
+                        .param("postingId", String.valueOf(posting.getId()))
+                        .param("page", "1")
+                        .param("size", "2"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content.length()").value(1))
+                .andExpect(jsonPath("$.totalElements").value(3))
+                .andExpect(jsonPath("$.hasNext").value(false));
+    }
+
+    @Test
+    void listAll_withoutPageParams_defaultsToPageZeroSizeTwenty() throws Exception {
+        User admin = createUser(Role.ADMIN);
+        User recruiter = createUser(Role.RECRUITER);
+        JobPosting posting = createPosting(admin, PostingStatus.OPEN);
+        apply(createUser(Role.CANDIDATE), posting);
+
+        mockMvc.perform(get("/api/applications")
+                        .header("Authorization", bearerToken(recruiter))
+                        .param("postingId", String.valueOf(posting.getId())))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.page").value(0))
+                .andExpect(jsonPath("$.size").value(20));
     }
 
     // ---- PATCH /api/applications/{id}/status -----------------------------------------------

@@ -30,6 +30,11 @@ export interface ApplicationResponse {
   status: ApplicationStatus;
   createdAt: string;
   updatedAt: string;
+  /** Null until a resume has been uploaded (POST /api/applications/{id}/resume). */
+  resumeFilename: string | null;
+  resumeContentType: string | null;
+  resumeSizeBytes: number | null;
+  resumeUploadedAt: string | null;
 }
 
 export interface ApplicationEventResponse {

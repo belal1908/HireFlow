@@ -7,6 +7,9 @@
   @if (actionError()) {
     <p class="error" role="alert">{{ actionError() }}</p>
   }
+  @if (uploadError()) {
+    <p class="error" role="alert">{{ uploadError() }}</p>
+  }
 
   @if (loading()) {
     <p>Loading…</p>
@@ -18,8 +21,10 @@
         <tr>
           <th>Posting</th>
           <th>Status</th>
+          <th class="pipeline-col">Pipeline</th>
           <th>Applied</th>
           <th>Updated</th>
+          <th>Resume</th>
           <th>Actions</th>
         </tr>
       </thead>
@@ -27,9 +32,38 @@
         @for (app of applications(); track app.id) {
           <tr [id]="'app-row-' + app.id">
             <td>{{ postingTitle(app.jobPostingId) }}</td>
-            <td><span class="status-badge" [attr.data-status]="app.status">{{ app.status }}</span></td>
+            <td><app-status-badge [status]="app.status" /></td>
+            <td class="pipeline-col"><app-pipeline-progress [status]="app.status" /></td>
             <td>{{ app.createdAt | date: 'short' }}</td>
             <td>{{ app.updatedAt | date: 'short' }}</td>
+            <td class="resume-cell">
+              @if (app.resumeFilename) {
+                <button
+                  type="button"
+                  class="resume-download-btn"
+                  [disabled]="downloadingId() === app.id"
+                  (click)="downloadResume(app)"
+                >
+                  {{ downloadingId() === app.id ? 'Downloading…' : app.resumeFilename }}
+                </button>
+                <span class="resume-meta">{{ formatSize(app.resumeSizeBytes) }}</span>
+              } @else {
+                <span class="muted">No resume</span>
+              }
+              <label class="resume-upload-label">
+                <input
+                  type="file"
+                  accept="application/pdf"
+                  class="resume-file-input"
+                  [disabled]="uploadingId() === app.id"
+                  (change)="onResumeFileSelected(app, $event)"
+                />
+                {{ uploadingId() === app.id ? 'Uploading…' : app.resumeFilename ? 'Replace' : 'Upload PDF' }}
+              </label>
+              @if (uploadErrorId() === app.id && uploadError()) {
+                <p class="field-error">{{ uploadError() }}</p>
+              }
+            </td>
             <td class="actions">
               @if (app.status === 'OFFER') {
                 <button type="button" class="accept-btn" [disabled]="actingOnId() === app.id" (click)="acceptOffer(app)">

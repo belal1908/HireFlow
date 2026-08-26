@@ -1,17 +1,18 @@
 package com.hireflow.admin.service;
 
 import com.hireflow.admin.dto.CreateUserRequest;
+import com.hireflow.common.dto.PageResponse;
 import com.hireflow.common.exception.BadRequestException;
 import com.hireflow.common.exception.ConflictException;
 import com.hireflow.user.dto.UserResponse;
 import com.hireflow.user.entity.Role;
 import com.hireflow.user.entity.User;
 import com.hireflow.user.repository.UserRepository;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
-import java.util.List;
 
 /**
  * Backs the ADMIN-only user-management endpoints ({@code /api/admin/users}) that close the
@@ -56,8 +57,10 @@ public class AdminUserService {
     }
 
     @Transactional(readOnly = true)
-    public List<UserResponse> list(Role roleFilter) {
-        List<User> users = roleFilter == null ? userRepository.findAll() : userRepository.findByRole(roleFilter);
-        return users.stream().map(UserResponse::from).toList();
+    public PageResponse<UserResponse> list(Role roleFilter, Pageable pageable) {
+        Page<User> users = roleFilter == null
+                ? userRepository.findAll(pageable)
+                : userRepository.findByRole(roleFilter, pageable);
+        return PageResponse.from(users.map(UserResponse::from));
     }
 }

@@ -11,7 +11,11 @@ public record ApplicationResponse(
         Long jobPostingId,
         ApplicationStatus status,
         Instant createdAt,
-        Instant updatedAt
+        Instant updatedAt,
+        String resumeFilename,
+        String resumeContentType,
+        Long resumeSizeBytes,
+        Instant resumeUploadedAt
 ) {
     public static ApplicationResponse from(Application application) {
         return new ApplicationResponse(
@@ -20,6 +24,10 @@ public record ApplicationResponse(
                 application.getJobPosting().getId(),
                 application.getStatus(),
                 application.getCreatedAt(),
-                application.getUpdatedAt());
+                application.getUpdatedAt(),
+                application.getResumeOriginalFilename(),
+                application.getResumeContentType(),
+                application.getResumeSizeBytes(),
+                application.getResumeUploadedAt());
     }
 }

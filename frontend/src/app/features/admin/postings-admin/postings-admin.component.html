@@ -85,5 +85,12 @@
         }
       </tbody>
     </table>
+    <app-pager
+      [page]="page()"
+      [totalPages]="totalPages()"
+      [totalElements]="totalElements()"
+      [hasNext]="hasNext()"
+      (pageChange)="goToPage($event)"
+    />
   }
 </div>

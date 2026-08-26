@@ -2,14 +2,16 @@ package com.hireflow.admin.controller;
 
 import com.hireflow.admin.dto.CreateUserRequest;
 import com.hireflow.admin.service.AdminUserService;
+import com.hireflow.common.dto.PageResponse;
 import com.hireflow.user.dto.UserResponse;
 import com.hireflow.user.entity.Role;
 import jakarta.validation.Valid;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
-
-import java.util.List;
 
 /**
  * ADMIN-only account management for RECRUITER/ADMIN users - the endpoints that close the
@@ -35,7 +37,9 @@ public class AdminUserController {
 
     @GetMapping
     @PreAuthorize("hasRole('ADMIN')")
-    public List<UserResponse> list(@RequestParam(required = false) Role role) {
-        return adminUserService.list(role);
+    public PageResponse<UserResponse> list(
+            @RequestParam(required = false) Role role,
+            @PageableDefault(size = 20, sort = "id", direction = Sort.Direction.DESC) Pageable pageable) {
+        return adminUserService.list(role, pageable);
     }
 }

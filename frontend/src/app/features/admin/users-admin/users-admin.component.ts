@@ -4,6 +4,7 @@ import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { UserService } from '../../../core/services/user.service';
 import { UserResponse } from '../../../core/models/user.model';
 import { extractErrorMessage } from '../../../core/utils/api-error.util';
+import { PagerComponent } from '../../../shared/pager/pager.component';
 
 /**
  * ADMIN-only screen for the stretch-goal PRD feature: closes the README's documented
@@ -14,7 +15,7 @@ import { extractErrorMessage } from '../../../core/utils/api-error.util';
 @Component({
   selector: 'app-users-admin',
   standalone: true,
-  imports: [ReactiveFormsModule, DatePipe],
+  imports: [ReactiveFormsModule, DatePipe, PagerComponent],
   templateUrl: './users-admin.component.html',
   styleUrl: './users-admin.component.css'
 })
@@ -27,6 +28,11 @@ export class UsersAdminComponent implements OnInit {
   readonly errorMessage = signal<string | null>(null);
   readonly creating = signal(false);
   readonly createError = signal<string | null>(null);
+
+  readonly page = signal(0);
+  readonly totalPages = signal(0);
+  readonly totalElements = signal(0);
+  readonly hasNext = signal(false);
 
   readonly createForm = this.fb.nonNullable.group({
     email: ['', [Validators.required, Validators.email]],
@@ -41,9 +47,12 @@ export class UsersAdminComponent implements OnInit {
   private load(): void {
     this.loading.set(true);
     this.errorMessage.set(null);
-    this.userService.list().subscribe({
-      next: (users) => {
-        this.users.set(users);
+    this.userService.list(undefined, this.page()).subscribe({
+      next: (result) => {
+        this.users.set(result.content);
+        this.totalPages.set(result.totalPages);
+        this.totalElements.set(result.totalElements);
+        this.hasNext.set(result.hasNext);
         this.loading.set(false);
       },
       error: (err) => {
@@ -51,6 +60,11 @@ export class UsersAdminComponent implements OnInit {
         this.loading.set(false);
       }
     });
+  }
+
+  goToPage(page: number): void {
+    this.page.set(page);
+    this.load();
   }
 
   createUser(): void {

@@ -48,6 +48,31 @@ public class Application {
     @Column(name = "updated_at", nullable = false)
     private Instant updatedAt;
 
+    // --- Resume upload (nullable: most applications never get one) --------------------------
+    // Modeled as plain nullable columns on Application rather than a separate table: unlike
+    // ApplicationEvent (a genuine one-to-many audit log, append-only), a resume is a strict
+    // one-to-one/optional attribute of a single Application with no history to preserve - a
+    // re-upload simply replaces it (old file deleted from disk, columns overwritten). A join
+    // table would add a join for zero benefit here. The file itself is never stored in the DB
+    // (see ResumeStorageService) - only this metadata is.
+
+    /** Client-supplied filename, kept only for display/download purposes - never used as a disk path. */
+    @Column(name = "resume_original_filename")
+    private String resumeOriginalFilename;
+
+    /** UUID-based filename actually used on disk under the configured resume storage directory. */
+    @Column(name = "resume_stored_filename")
+    private String resumeStoredFilename;
+
+    @Column(name = "resume_content_type")
+    private String resumeContentType;
+
+    @Column(name = "resume_size_bytes")
+    private Long resumeSizeBytes;
+
+    @Column(name = "resume_uploaded_at")
+    private Instant resumeUploadedAt;
+
     @PrePersist
     protected void onCreate() {
         Instant now = Instant.now();

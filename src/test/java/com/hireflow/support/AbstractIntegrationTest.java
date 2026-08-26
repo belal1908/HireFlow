@@ -12,11 +12,16 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.testcontainers.containers.PostgreSQLContainer;
 
+import java.io.IOException;
+import java.io.UncheckedIOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.UUID;
 
 /**
@@ -37,6 +42,7 @@ import java.util.UUID;
  */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.MOCK)
 @AutoConfigureMockMvc
+@ActiveProfiles("test")
 public abstract class AbstractIntegrationTest {
 
     static final PostgreSQLContainer<?> POSTGRES = new PostgreSQLContainer<>("postgres:16-alpine")
@@ -44,6 +50,9 @@ public abstract class AbstractIntegrationTest {
             .withUsername("hireflow_test")
             .withPassword("hireflow_test")
             .withReuse(false);
+
+    /** Isolated from ./data/resumes (real dev data) - torn down is unnecessary since it's under the OS temp dir. */
+    private static final Path RESUME_STORAGE_DIR = createTempResumeDir();
 
     static {
         POSTGRES.start();
@@ -58,6 +67,15 @@ public abstract class AbstractIntegrationTest {
                 () -> "integration-test-signing-secret-at-least-32-bytes-long-0123456789");
         registry.add("hireflow.jwt.access-token-ttl-minutes", () -> "15");
         registry.add("hireflow.jwt.refresh-token-ttl-days", () -> "7");
+        registry.add("hireflow.resume.storage-dir", () -> RESUME_STORAGE_DIR.toString());
+    }
+
+    private static Path createTempResumeDir() {
+        try {
+            return Files.createTempDirectory("hireflow-test-resumes");
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
     }
 
     @Autowired

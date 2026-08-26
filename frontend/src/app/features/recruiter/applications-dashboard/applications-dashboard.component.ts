@@ -13,7 +13,9 @@ import {
 } from '../../../core/models/application.model';
 import { PostingResponse } from '../../../core/models/posting.model';
 import { extractErrorMessage } from '../../../core/utils/api-error.util';
-import { flashElement } from '../../../shared/animation/flash-element';
+import { flashElement, revealList, advanceCard } from '../../../shared/animation/motion';
+import { StatusBadgeComponent } from '../../../shared/status-badge/status-badge.component';
+import { PagerComponent } from '../../../shared/pager/pager.component';
 
 const ALL_STATUSES: ApplicationStatus[] = [
   'APPLIED',
@@ -25,15 +27,18 @@ const ALL_STATUSES: ApplicationStatus[] = [
   'WITHDRAWN'
 ];
 
+type ViewMode = 'table' | 'kanban';
+
 @Component({
   selector: 'app-applications-dashboard',
   standalone: true,
-  imports: [FormsModule, DatePipe],
+  imports: [FormsModule, DatePipe, StatusBadgeComponent, PagerComponent],
   templateUrl: './applications-dashboard.component.html',
   styleUrl: './applications-dashboard.component.css'
 })
 export class ApplicationsDashboardComponent implements OnInit {
   readonly allStatuses = ALL_STATUSES;
+  readonly pageSize = 20;
 
   readonly applications = signal<ApplicationResponse[]>([]);
   readonly postings = signal<PostingResponse[]>([]);
@@ -45,6 +50,15 @@ export class ApplicationsDashboardComponent implements OnInit {
   readonly expandedIds = signal<Set<number>>(new Set());
   readonly eventsByApplication = signal<Map<number, ApplicationEventResponse[]>>(new Map());
   readonly eventsLoadingId = signal<number | null>(null);
+  readonly downloadingResumeId = signal<number | null>(null);
+
+  /** Table is the default view — the working filter/transition-action flow (and the e2e suite) targets it. Kanban is additive, behind this toggle. */
+  readonly viewMode = signal<ViewMode>('table');
+
+  readonly page = signal(0);
+  readonly totalPages = signal(0);
+  readonly totalElements = signal(0);
+  readonly hasNext = signal(false);
 
   filterPostingId: number | null = null;
   filterStatus: ApplicationStatus | '' = '';
@@ -56,8 +70,11 @@ export class ApplicationsDashboardComponent implements OnInit {
   ) {}
 
   ngOnInit(): void {
-    this.postingService.list().subscribe({
-      next: (postings) => this.postings.set(postings),
+    // A generous single fetch purely to resolve posting titles / populate the filter dropdown —
+    // this is metadata lookup, not the primary paginated surface (that's the applications list
+    // itself, below, which is what actually pages through results).
+    this.postingService.list(0, 200).subscribe({
+      next: (result) => this.postings.set(result.content),
       error: () => {
         /* Non-fatal: dashboard still works with numeric posting ids if this fails. */
       }
@@ -68,10 +85,14 @@ export class ApplicationsDashboardComponent implements OnInit {
   load(): void {
     this.loading.set(true);
     this.errorMessage.set(null);
-    this.applicationService.list(this.filterPostingId, this.filterStatus || null).subscribe({
-      next: (applications) => {
-        this.applications.set(applications);
+    this.applicationService.list(this.filterPostingId, this.filterStatus || null, this.page(), this.pageSize).subscribe({
+      next: (result) => {
+        this.applications.set(result.content);
+        this.totalPages.set(result.totalPages);
+        this.totalElements.set(result.totalElements);
+        this.hasNext.set(result.hasNext);
         this.loading.set(false);
+        this.revealRows();
       },
       error: (err) => {
         this.errorMessage.set(extractErrorMessage(err));
@@ -80,9 +101,32 @@ export class ApplicationsDashboardComponent implements OnInit {
     });
   }
 
+  /**
+   * Staggered reveal of whichever surface is currently rendered. Deferred a frame so Angular has
+   * actually flushed the new rows/cards into the DOM before anime.js queries for them - without
+   * that wait the selector matches the *previous* page's nodes (or nothing at all on first load).
+   */
+  private revealRows(): void {
+    requestAnimationFrame(() => {
+      revealList(this.viewMode() === 'kanban' ? '.kanban-card' : 'tbody tr[id^="app-row-"]');
+    });
+  }
+
+  goToPage(page: number): void {
+    this.page.set(page);
+    this.load();
+  }
+
+  /** Filter changes always reset back to page 0 - the previously selected page may no longer exist under the new filter. */
+  onFilterChange(): void {
+    this.page.set(0);
+    this.load();
+  }
+
   clearFilters(): void {
     this.filterPostingId = null;
     this.filterStatus = '';
+    this.page.set(0);
     this.load();
   }
 
@@ -96,6 +140,20 @@ export class ApplicationsDashboardComponent implements OnInit {
 
   nextStatus(status: ApplicationStatus): ApplicationStatus | null {
     return nextForwardStatus(status);
+  }
+
+  /** Switching surfaces re-runs the entrance stagger, so the newly-shown view resolves in rather than snapping. */
+  setViewMode(mode: ViewMode): void {
+    if (this.viewMode() === mode) {
+      return;
+    }
+    this.viewMode.set(mode);
+    this.revealRows();
+  }
+
+  /** Groups the CURRENT PAGE's applications by status for the kanban columns - it does not fetch additional pages. */
+  applicationsByStatus(status: ApplicationStatus): ApplicationResponse[] {
+    return this.applications().filter((a) => a.status === status);
   }
 
   advance(application: ApplicationResponse): void {
@@ -116,8 +174,7 @@ export class ApplicationsDashboardComponent implements OnInit {
     this.applicationService.updateStatus(application.id, target).subscribe({
       next: (updated) => {
         this.actingOnId.set(null);
-        this.applications.update((list) => list.map((a) => (a.id === updated.id ? updated : a)));
-        flashElement(`app-row-${updated.id}`);
+        this.applyTransitionResult(updated);
         // Refresh the audit trail inline if it's currently expanded, so the new event shows up.
         if (this.expandedIds().has(updated.id)) {
           this.loadEvents(updated.id);
@@ -127,6 +184,44 @@ export class ApplicationsDashboardComponent implements OnInit {
         this.actingOnId.set(null);
         this.actionError.set(extractErrorMessage(err));
       }
+    });
+  }
+
+  /**
+   * Commits a completed transition to the list, choosing the motion that matches the surface.
+   *
+   * In kanban the card is about to be re-grouped into a *different column*, so it animates out
+   * of its current one first and the incoming column's card is revealed on the other side -
+   * the movement is the feedback. In the table the row stays exactly where it is and only its
+   * status cell changes, so a flash is the honest signal; sliding it around would imply a
+   * movement that didn't happen.
+   */
+  private applyTransitionResult(updated: ApplicationResponse): void {
+    const commit = () => {
+      this.applications.update((list) => list.map((a) => (a.id === updated.id ? updated : a)));
+    };
+
+    if (this.viewMode() !== 'kanban') {
+      commit();
+      flashElement(`app-row-${updated.id}`);
+      return;
+    }
+
+    const card = document.getElementById(`app-row-${updated.id}`);
+    if (!card) {
+      commit();
+      return;
+    }
+
+    const leavingForward = !TERMINAL_STATUSES.has(updated.status);
+    advanceCard(card, leavingForward ? 'forward' : 'out').then(() => {
+      commit();
+      requestAnimationFrame(() => {
+        const landed = document.getElementById(`app-row-${updated.id}`);
+        if (landed) {
+          revealList(`#app-row-${updated.id}`);
+        }
+      });
     });
   }
 
@@ -160,5 +255,28 @@ export class ApplicationsDashboardComponent implements OnInit {
 
   eventsFor(applicationId: number): ApplicationEventResponse[] {
     return this.eventsByApplication().get(applicationId) ?? [];
+  }
+
+  downloadResume(application: ApplicationResponse): void {
+    this.downloadingResumeId.set(application.id);
+    this.applicationService.downloadResume(application.id).subscribe({
+      next: (response) => {
+        this.downloadingResumeId.set(null);
+        const blob = response.body;
+        if (!blob) {
+          return;
+        }
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = application.resumeFilename ?? 'resume.pdf';
+        link.click();
+        URL.revokeObjectURL(url);
+      },
+      error: (err) => {
+        this.downloadingResumeId.set(null);
+        this.actionError.set(extractErrorMessage(err));
+      }
+    });
   }
 }

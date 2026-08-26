@@ -88,25 +88,125 @@ th {
   letter-spacing: 0.03em;
 }
 
-.status-badge {
-  display: inline-block;
-  padding: 0.2rem 0.55rem;
-  border-radius: 999px;
-  font-size: 0.72rem;
+.view-toggle {
+  display: flex;
+  border: 1px solid #d0d0d0;
+  border-radius: 4px;
+  overflow: hidden;
+  height: fit-content;
+}
+
+.view-toggle button {
+  padding: 0.45rem 0.8rem;
+  border: none;
+  background: white;
+  cursor: pointer;
+  font-size: 0.82rem;
+  color: #555;
+}
+
+.view-toggle button + button {
+  border-left: 1px solid #d0d0d0;
+}
+
+.view-toggle button.active {
+  background: #2454ff;
+  color: white;
   font-weight: 600;
-  background: #eef1ff;
-  color: #2454ff;
 }
 
-.status-badge[data-status='ACCEPTED'] {
-  background: #e6f7ec;
-  color: #1e7e34;
+.kanban-hint {
+  color: #888;
+  font-size: 0.8rem;
+  margin: 0 0 0.75rem;
 }
 
-.status-badge[data-status='REJECTED'],
-.status-badge[data-status='WITHDRAWN'] {
-  background: #f2f2f2;
-  color: #666;
+.kanban-board {
+  display: flex;
+  gap: 0.85rem;
+  overflow-x: auto;
+  padding-bottom: 0.5rem;
+}
+
+.kanban-column {
+  flex: 0 0 240px;
+  background: #fafafa;
+  border: 1px solid #eee;
+  border-radius: 6px;
+  padding: 0.6rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.kanban-column-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.kanban-count {
+  font-size: 0.75rem;
+  color: #888;
+  font-weight: 600;
+}
+
+.kanban-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  min-height: 2rem;
+}
+
+.kanban-card {
+  background: white;
+  border: 1px solid #e4e4e4;
+  border-radius: 6px;
+  padding: 0.55rem 0.6rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  font-size: 0.8rem;
+}
+
+.kanban-card-title {
+  font-weight: 600;
+}
+
+.kanban-card-meta {
+  color: #888;
+  font-size: 0.74rem;
+}
+
+.kanban-card-actions {
+  display: flex;
+  gap: 0.35rem;
+  flex-wrap: wrap;
+}
+
+.kanban-card-actions button {
+  padding: 0.28rem 0.5rem;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.72rem;
+}
+
+.kanban-card-actions button:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.kanban-card-events {
+  border-top: 1px dashed #eee;
+  padding-top: 0.35rem;
+}
+
+.kanban-empty {
+  color: #aaa;
+  font-size: 0.78rem;
+  font-style: italic;
+  margin: 0;
 }
 
 .actions {
@@ -181,4 +281,59 @@ th {
   color: #999;
   font-size: 0.8rem;
   margin: 0.3rem 0;
+}
+
+.resume-download-btn {
+  background: none;
+  border: none;
+  color: #2454ff;
+  text-decoration: underline;
+  cursor: pointer;
+  padding: 0;
+  font-size: 0.8rem;
+  text-align: left;
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.resume-download-btn:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+/* ------------------------------------------------------------------------------------------
+ * Responsive kanban
+ *
+ * The board already scrolls horizontally, which is the right behaviour on a phone too - a
+ * pipeline is inherently a horizontal sequence, and stacking the columns vertically would
+ * destroy the left-to-right "stages" reading that makes the view worth having. What it lacked
+ * was scroll snapping, so a swipe used to leave the user parked between two half-columns.
+ * ---------------------------------------------------------------------------------------- */
+@media (max-width: 720px) {
+  .kanban-board {
+    scroll-snap-type: x mandatory;
+    /* Room for the snapped column to sit comfortably rather than flush to the edge. */
+    scroll-padding-left: 0.5rem;
+  }
+
+  .kanban-column {
+    /* Just under full width, so the next column peeks in and advertises that it's swipeable. */
+    flex: 0 0 86vw;
+    scroll-snap-align: start;
+  }
+
+  /* Card actions get full-width tap targets instead of sitting side by side and cramped. */
+  .kanban-card-actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}
+
+/* Cards animate via anime.js (shared/animation/motion.ts). The transform/opacity hints keep
+ * that work on the compositor, and the will-change is scoped to cards specifically rather than
+ * applied broadly, which would cost memory for no benefit. */
+.kanban-card {
+  will-change: transform, opacity;
 }

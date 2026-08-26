@@ -34,3 +34,116 @@ a {
 button {
   font-family: inherit;
 }
+
+/* ---------------------------------------------------------------------------------------------
+   Status badge: ONE definition for the ApplicationStatus color treatment, reused everywhere a
+   status appears (My Applications, the recruiter dashboard's table AND kanban board, the audit
+   trail) via the shared <app-status-badge> component (shared/status-badge/status-badge.component.ts).
+   A global class (rather than per-component styles) is the right level of DRY here: it's plain
+   CSS keyed only off a `data-status` attribute, consistent with this project's existing
+   minimal-CSS approach, and it means the badge's look is defined in exactly one place instead of
+   being copy-pasted (as it was before) into every component that happens to render a status.
+   --------------------------------------------------------------------------------------------- */
+.status-badge {
+  display: inline-block;
+  padding: 0.2rem 0.55rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  white-space: nowrap;
+  background: #eef1ff;
+  color: #2454ff;
+}
+
+.status-badge[data-status='APPLIED'] {
+  background: #eef1ff;
+  color: #2454ff;
+}
+
+.status-badge[data-status='SCREENING'] {
+  background: #f3ebff;
+  color: #7c3aed;
+}
+
+.status-badge[data-status='INTERVIEW'] {
+  background: #fff4e0;
+  color: #b26a00;
+}
+
+.status-badge[data-status='OFFER'] {
+  background: #e0f7f5;
+  color: #0f766e;
+}
+
+.status-badge[data-status='ACCEPTED'] {
+  background: #e6f7ec;
+  color: #1e7e34;
+}
+
+.status-badge[data-status='REJECTED'] {
+  background: #fdecea;
+  color: #b3261e;
+}
+
+.status-badge[data-status='WITHDRAWN'] {
+  background: #f2f2f2;
+  color: #666;
+}
+
+/* ---------------------------------------------------------------------------------------------
+ * Motion + responsive baseline
+ *
+ * Two things live here rather than in component styles because they must hold across every
+ * screen in the app: the global reduced-motion opt-out, and the small-viewport rules that turn
+ * this from a desktop-only tool into something usable on a phone. Before this the project had
+ * no media queries at all - every table simply overflowed off-screen on mobile.
+ * ------------------------------------------------------------------------------------------ */
+
+/*
+ * Belt-and-braces reduced-motion handling. The JS side already checks
+ * `prefers-reduced-motion` (shared/animation/motion.ts) and skips animations, but a CSS
+ * backstop also covers plain CSS transitions and anything that slips past a JS guard - and it
+ * still applies if a script fails to load.
+ */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Tables are the main desktop-first offender: they overflow rather than wrap. Give every one a
+ * horizontal scroll container instead of letting it push the page sideways. */
+.table-scroll {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+@media (max-width: 720px) {
+  /* Filter bars and toolbars stack instead of forcing a horizontal squeeze. */
+  .filters,
+  .toolbar,
+  .view-toggle {
+    flex-wrap: wrap;
+  }
+
+  /* The pipeline stepper is the first thing to go on a narrow screen: the status badge already
+   * carries the same information in less space, so the graphic is redundant here rather than
+   * merely cramped. */
+  .pipeline-col {
+    display: none;
+  }
+
+  table {
+    font-size: 0.92rem;
+  }
+
+  /* Touch targets: small inline action buttons are hard to hit accurately on a phone. */
+  button {
+    min-height: 36px;
+  }
+}

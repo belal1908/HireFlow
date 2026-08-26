@@ -30,5 +30,10 @@
         </div>
       }
     </div>
+    @if (hasNext()) {
+      <button type="button" class="load-more-btn" [disabled]="loadingMore()" (click)="loadMore()">
+        {{ loadingMore() ? 'Loading…' : 'Load more' }}
+      </button>
+    }
   }
 </div>

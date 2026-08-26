@@ -10,6 +10,8 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
+import org.springframework.web.multipart.support.MissingServletRequestPartException;
 
 import java.util.List;
 
@@ -79,6 +81,26 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ApiError> handleUnreadable(HttpMessageNotReadableException ex) {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                 .body(ApiError.of(HttpStatus.BAD_REQUEST, "Malformed request body"));
+    }
+
+    /**
+     * Thrown by Spring's multipart resolver when an upload exceeds
+     * {@code spring.servlet.multipart.max-file-size}/{@code max-request-size} - this fires
+     * before {@code ApplicationService#uploadResume}'s own size check even runs, for requests
+     * that are oversized enough to trip the container-level limit. Without this handler it would
+     * fall through to the generic 500 handler below.
+     */
+    @ExceptionHandler(MaxUploadSizeExceededException.class)
+    public ResponseEntity<ApiError> handleMaxUploadSizeExceeded(MaxUploadSizeExceededException ex) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(ApiError.of(HttpStatus.BAD_REQUEST, "Uploaded file exceeds the maximum allowed size"));
+    }
+
+    /** e.g. POST /api/applications/{id}/resume with no "file" part at all. */
+    @ExceptionHandler(MissingServletRequestPartException.class)
+    public ResponseEntity<ApiError> handleMissingPart(MissingServletRequestPartException ex) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(ApiError.of(HttpStatus.BAD_REQUEST, "Required part '" + ex.getRequestPartName() + "' is missing"));
     }
 
     /** e.g. GET /api/applications?status=NOT_A_REAL_STATUS - a malformed query param, not a server error. */

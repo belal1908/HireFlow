@@ -43,6 +43,11 @@ services:
       JWT_ACCESS_TTL_MINUTES: ${JWT_ACCESS_TTL_MINUTES:-15}
       JWT_REFRESH_TTL_DAYS: ${JWT_REFRESH_TTL_DAYS:-7}
       SERVER_PORT: 8080
+      # Defaults to enabled (production-like). The e2e CI job overrides this to false, because
+      # its per-scenario seeding registers/logs in several accounts in quick succession from one
+      # IP and would otherwise trip the limiter - see .github/workflows/build.yml.
+      AUTH_RATE_LIMIT_ENABLED: ${AUTH_RATE_LIMIT_ENABLED:-true}
+      AUTH_RATE_LIMIT_PER_MINUTE: ${AUTH_RATE_LIMIT_PER_MINUTE:-10}
     ports:
       # Published to the host so the *browser* (not just other containers) can reach the API -
       # a browser-rendered SPA can't resolve Docker-internal service names, so the frontend's

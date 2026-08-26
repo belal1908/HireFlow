@@ -1,0 +1,10 @@
+# Active for every AbstractIntegrationTest subclass (@ActiveProfiles("test")). See
+# RateLimitingFilter's class comment for why the rate limiter is disabled here rather than
+# given a raised threshold: the whole integration suite shares one MockMvc "client" (same
+# remote address for every request), and collectively issues far more than any reasonable
+# production threshold's worth of login/register calls across ~300 tests. The limiter's own
+# logic is unit-tested directly and in isolation (TokenBucketRateLimiterTest,
+# RateLimitingFilterTest), independent of this flag.
+hireflow:
+  rate-limit:
+    enabled: false

@@ -68,3 +68,12 @@ button:disabled {
   background: #e0e0e0;
   color: #555;
 }
+
+.load-more-btn {
+  display: block;
+  margin: 1.25rem auto 0;
+  padding: 0.5rem 1.5rem;
+  background: white;
+  color: #2454ff;
+  border: 1px solid #2454ff;
+}

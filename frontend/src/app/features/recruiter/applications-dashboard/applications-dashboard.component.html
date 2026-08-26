@@ -4,7 +4,7 @@
   <div class="filters">
     <label>
       Posting
-      <select [(ngModel)]="filterPostingId" (ngModelChange)="load()">
+      <select [(ngModel)]="filterPostingId" (ngModelChange)="onFilterChange()">
         <option [ngValue]="null">All postings</option>
         @for (posting of postings(); track posting.id) {
           <option [ngValue]="posting.id">{{ posting.title }}</option>
@@ -14,7 +14,7 @@
 
     <label>
       Status
-      <select [(ngModel)]="filterStatus" (ngModelChange)="load()">
+      <select [(ngModel)]="filterStatus" (ngModelChange)="onFilterChange()">
         <option [ngValue]="''">All statuses</option>
         @for (status of allStatuses; track status) {
           <option [ngValue]="status">{{ status }}</option>
@@ -23,6 +23,11 @@
     </label>
 
     <button type="button" class="clear-btn" (click)="clearFilters()">Clear filters</button>
+
+    <div class="view-toggle" role="group" aria-label="View mode">
+      <button type="button" [class.active]="viewMode() === 'table'" (click)="setViewMode('table')">Table</button>
+      <button type="button" [class.active]="viewMode() === 'kanban'" (click)="setViewMode('kanban')">Kanban</button>
+    </div>
   </div>
 
   @if (authService.hasRole('ADMIN')) {
@@ -40,7 +45,7 @@
     <p>Loading…</p>
   } @else if (applications().length === 0) {
     <p class="empty">No applications match these filters.</p>
-  } @else {
+  } @else if (viewMode() === 'table') {
     <table>
       <thead>
         <tr>
@@ -49,6 +54,7 @@
           <th>Candidate</th>
           <th>Status</th>
           <th>Updated</th>
+          <th>Resume</th>
           <th>Actions</th>
         </tr>
       </thead>
@@ -58,8 +64,22 @@
             <td>{{ app.id }}</td>
             <td>{{ postingTitle(app.jobPostingId) }}</td>
             <td>#{{ app.candidateId }}</td>
-            <td><span class="status-badge" [attr.data-status]="app.status">{{ app.status }}</span></td>
+            <td><app-status-badge [status]="app.status" /></td>
             <td>{{ app.updatedAt | date: 'short' }}</td>
+            <td>
+              @if (app.resumeFilename) {
+                <button
+                  type="button"
+                  class="resume-download-btn"
+                  [disabled]="downloadingResumeId() === app.id"
+                  (click)="downloadResume(app)"
+                >
+                  {{ downloadingResumeId() === app.id ? 'Downloading…' : 'Download' }}
+                </button>
+              } @else {
+                <span class="muted">None</span>
+              }
+            </td>
             <td class="actions">
               @if (authService.hasRole('RECRUITER')) {
                 @if (nextStatus(app.status)) {
@@ -80,7 +100,7 @@
           </tr>
           @if (expandedIds().has(app.id)) {
             <tr class="events-row">
-              <td colspan="6">
+              <td colspan="7">
                 @if (eventsLoadingId() === app.id) {
                   <p class="muted">Loading audit trail…</p>
                 } @else if (eventsFor(app.id).length === 0) {
@@ -104,5 +124,88 @@
         }
       </tbody>
     </table>
+    <app-pager
+      [page]="page()"
+      [totalPages]="totalPages()"
+      [totalElements]="totalElements()"
+      [hasNext]="hasNext()"
+      (pageChange)="goToPage($event)"
+    />
+  } @else {
+    <!-- Kanban view: groups the CURRENT PAGE's applications into columns by status. The same
+         Advance/Reject/View events actions from the table are still available per card. -->
+    <p class="kanban-hint">Showing this page's {{ applications().length }} application(s) grouped by status.</p>
+    <div class="kanban-board">
+      @for (status of allStatuses; track status) {
+        <div class="kanban-column">
+          <div class="kanban-column-header">
+            <app-status-badge [status]="status" />
+            <span class="kanban-count">{{ applicationsByStatus(status).length }}</span>
+          </div>
+          <div class="kanban-cards">
+            @for (app of applicationsByStatus(status); track app.id) {
+              <div class="kanban-card" [id]="'app-row-' + app.id">
+                <div class="kanban-card-title">{{ postingTitle(app.jobPostingId) }}</div>
+                <div class="kanban-card-meta">Candidate #{{ app.candidateId }} · {{ app.updatedAt | date: 'short' }}</div>
+                @if (app.resumeFilename) {
+                  <button
+                    type="button"
+                    class="resume-download-btn"
+                    [disabled]="downloadingResumeId() === app.id"
+                    (click)="downloadResume(app)"
+                  >
+                    {{ downloadingResumeId() === app.id ? 'Downloading…' : '📄 ' + app.resumeFilename }}
+                  </button>
+                }
+                <div class="kanban-card-actions">
+                  @if (authService.hasRole('RECRUITER')) {
+                    @if (nextStatus(app.status)) {
+                      <button type="button" class="advance-btn" [disabled]="actingOnId() === app.id" (click)="advance(app)">
+                        Advance → {{ nextStatus(app.status) }}
+                      </button>
+                    }
+                    @if (!isTerminal(app.status)) {
+                      <button type="button" class="reject-btn" [disabled]="actingOnId() === app.id" (click)="reject(app)">
+                        Reject
+                      </button>
+                    }
+                  }
+                  <button type="button" class="events-btn" (click)="toggleEvents(app.id)">
+                    {{ expandedIds().has(app.id) ? 'Hide events' : 'View events' }}
+                  </button>
+                </div>
+                @if (expandedIds().has(app.id)) {
+                  <div class="kanban-card-events">
+                    @if (eventsLoadingId() === app.id) {
+                      <p class="muted">Loading…</p>
+                    } @else if (eventsFor(app.id).length === 0) {
+                      <p class="muted">No events recorded.</p>
+                    } @else {
+                      <ul class="events-list">
+                        @for (event of eventsFor(app.id); track event.id) {
+                          <li>
+                            <span class="event-transition">{{ event.fromStatus ?? '—' }} → {{ event.toStatus }}</span>
+                            <span class="event-meta">{{ event.timestamp | date: 'short' }}</span>
+                          </li>
+                        }
+                      </ul>
+                    }
+                  </div>
+                }
+              </div>
+            } @empty {
+              <p class="kanban-empty">No applications</p>
+            }
+          </div>
+        </div>
+      }
+    </div>
+    <app-pager
+      [page]="page()"
+      [totalPages]="totalPages()"
+      [totalElements]="totalElements()"
+      [hasNext]="hasNext()"
+      (pageChange)="goToPage($event)"
+    />
   }
 </div>

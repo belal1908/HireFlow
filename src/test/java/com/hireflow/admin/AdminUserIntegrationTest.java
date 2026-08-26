@@ -4,8 +4,12 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.hireflow.support.AbstractIntegrationTest;
 import com.hireflow.user.entity.Role;
 import com.hireflow.user.entity.User;
+import com.jayway.jsonpath.JsonPath;
 import org.junit.jupiter.api.Test;
 
+import java.util.List;
+
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -34,12 +38,12 @@ class AdminUserIntegrationTest extends AbstractIntegrationTest {
         // 2. It shows up in the admin's user list.
         mockMvc.perform(get("/api/admin/users").header("Authorization", bearerToken(admin)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[?(@.email == '" + email + "')]").exists());
+                .andExpect(jsonPath("$.content[?(@.email == '" + email + "')]").exists());
 
         // 3. And filtering by role finds it too.
         mockMvc.perform(get("/api/admin/users?role=RECRUITER").header("Authorization", bearerToken(admin)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[?(@.email == '" + email + "')]").exists());
+                .andExpect(jsonPath("$.content[?(@.email == '" + email + "')]").exists());
 
         // 4. The created account can actually log in...
         String loginBody = """
@@ -240,5 +244,42 @@ class AdminUserIntegrationTest extends AbstractIntegrationTest {
     @Test
     void list_withoutAuthentication_returns401() throws Exception {
         mockMvc.perform(get("/api/admin/users")).andExpect(status().isUnauthorized());
+    }
+
+    /**
+     * Scoped via ?role=RECRUITER plus freshly-created accounts, then asserts two consecutive
+     * pages return disjoint rows (real pagination), since - like postings - there's no filter
+     * that isolates exactly these 3 new accounts from whatever else the shared test DB holds.
+     */
+    @Test
+    void list_pagination_returnsDistinctPagesWithCorrectMetadata() throws Exception {
+        User admin = createUser(Role.ADMIN);
+        createUser(Role.RECRUITER);
+        createUser(Role.RECRUITER);
+        createUser(Role.RECRUITER);
+
+        String page0Json = mockMvc.perform(get("/api/admin/users")
+                        .header("Authorization", bearerToken(admin))
+                        .param("role", "RECRUITER")
+                        .param("page", "0")
+                        .param("size", "2"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content.length()").value(2))
+                .andExpect(jsonPath("$.size").value(2))
+                .andExpect(jsonPath("$.hasNext").value(true))
+                .andReturn().getResponse().getContentAsString();
+
+        String page1Json = mockMvc.perform(get("/api/admin/users")
+                        .header("Authorization", bearerToken(admin))
+                        .param("role", "RECRUITER")
+                        .param("page", "1")
+                        .param("size", "2"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.page").value(1))
+                .andReturn().getResponse().getContentAsString();
+
+        List<Integer> page0Ids = JsonPath.read(page0Json, "$.content[*].id");
+        List<Integer> page1Ids = JsonPath.read(page1Json, "$.content[*].id");
+        assertThat(page0Ids).doesNotContainAnyElementsOf(page1Ids);
     }
 }

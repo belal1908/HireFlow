@@ -19,6 +19,10 @@ spring:
     default-property-inclusion: non_null
     deserialization:
       fail-on-unknown-properties: false
+  servlet:
+    multipart:
+      max-file-size: ${RESUME_MAX_FILE_SIZE:5MB}
+      max-request-size: ${RESUME_MAX_FILE_SIZE:5MB}
 
 server:
   port: ${SERVER_PORT:8080}
@@ -28,6 +32,15 @@ hireflow:
     secret: ${JWT_SECRET:}
     access-token-ttl-minutes: ${JWT_ACCESS_TTL_MINUTES:15}
     refresh-token-ttl-days: ${JWT_REFRESH_TTL_DAYS:7}
+  resume:
+    # Outside src/, gitignored - see README "Résumé storage". Relative paths resolve against the
+    # process working directory (the project root for both `mvn spring-boot:run` and `mvn test`,
+    # /app inside the Docker image - see docker-compose.yml's backend volume mount).
+    storage-dir: ${RESUME_STORAGE_DIR:./data/resumes}
+    max-size-bytes: ${RESUME_MAX_SIZE_BYTES:5242880} # 5MB, mirrors spring.servlet.multipart above
+  rate-limit:
+    enabled: ${AUTH_RATE_LIMIT_ENABLED:true}
+    requests-per-minute: ${AUTH_RATE_LIMIT_PER_MINUTE:10}
 
 logging:
   level:

@@ -1,5 +1,6 @@
 package com.hireflow.posting.service;
 
+import com.hireflow.common.dto.PageResponse;
 import com.hireflow.common.exception.NotFoundException;
 import com.hireflow.posting.dto.CreatePostingRequest;
 import com.hireflow.posting.dto.PostingResponse;
@@ -11,10 +12,10 @@ import com.hireflow.security.CustomUserDetails;
 import com.hireflow.user.entity.Role;
 import com.hireflow.user.entity.User;
 import com.hireflow.user.repository.UserRepository;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
-import java.util.List;
 
 @Service
 public class PostingService {
@@ -29,11 +30,11 @@ public class PostingService {
 
     /** Any authenticated user sees OPEN postings only; ADMIN sees everything (including CLOSED). */
     @Transactional(readOnly = true)
-    public List<PostingResponse> list(CustomUserDetails currentUser) {
-        List<JobPosting> postings = currentUser.getRoleEnum() == Role.ADMIN
-                ? jobPostingRepository.findAll()
-                : jobPostingRepository.findByStatus(PostingStatus.OPEN);
-        return postings.stream().map(PostingResponse::from).toList();
+    public PageResponse<PostingResponse> list(CustomUserDetails currentUser, Pageable pageable) {
+        Page<JobPosting> postings = currentUser.getRoleEnum() == Role.ADMIN
+                ? jobPostingRepository.findAll(pageable)
+                : jobPostingRepository.findByStatus(PostingStatus.OPEN, pageable);
+        return PageResponse.from(postings.map(PostingResponse::from));
     }
 
     @Transactional

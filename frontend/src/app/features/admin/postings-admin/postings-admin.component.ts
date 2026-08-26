@@ -4,11 +4,12 @@ import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { PostingService } from '../../../core/services/posting.service';
 import { PostingResponse, PostingStatus } from '../../../core/models/posting.model';
 import { extractErrorMessage } from '../../../core/utils/api-error.util';
+import { PagerComponent } from '../../../shared/pager/pager.component';
 
 @Component({
   selector: 'app-postings-admin',
   standalone: true,
-  imports: [ReactiveFormsModule, DatePipe],
+  imports: [ReactiveFormsModule, DatePipe, PagerComponent],
   templateUrl: './postings-admin.component.html',
   styleUrl: './postings-admin.component.css'
 })
@@ -21,6 +22,11 @@ export class PostingsAdminComponent implements OnInit {
   readonly errorMessage = signal<string | null>(null);
   readonly creating = signal(false);
   readonly createError = signal<string | null>(null);
+
+  readonly page = signal(0);
+  readonly totalPages = signal(0);
+  readonly totalElements = signal(0);
+  readonly hasNext = signal(false);
 
   readonly editingId = signal<number | null>(null);
   readonly savingId = signal<number | null>(null);
@@ -44,9 +50,12 @@ export class PostingsAdminComponent implements OnInit {
   private load(): void {
     this.loading.set(true);
     this.errorMessage.set(null);
-    this.postingService.list().subscribe({
-      next: (postings) => {
-        this.postings.set(postings);
+    this.postingService.list(this.page()).subscribe({
+      next: (result) => {
+        this.postings.set(result.content);
+        this.totalPages.set(result.totalPages);
+        this.totalElements.set(result.totalElements);
+        this.hasNext.set(result.hasNext);
         this.loading.set(false);
       },
       error: (err) => {
@@ -54,6 +63,11 @@ export class PostingsAdminComponent implements OnInit {
         this.loading.set(false);
       }
     });
+  }
+
+  goToPage(page: number): void {
+    this.page.set(page);
+    this.load();
   }
 
   createPosting(): void {

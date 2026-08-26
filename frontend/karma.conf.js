@@ -30,6 +30,13 @@ module.exports = function (config) {
     colors: true,
     logLevel: config.LOG_INFO,
     autoWatch: true,
+    // Raised from Karma's 60s default purely as headroom: on a loaded machine Chrome can take
+    // longer than that to come up, which surfaces as a "has not captured in 60000 ms" failure
+    // that looks like a real defect but isn't. Raising the ceiling changes no test behavior.
+    captureTimeout: 180000,
+    browserDisconnectTimeout: 30000,
+    browserDisconnectTolerance: 2,
+    browserNoActivityTimeout: 120000,
     customLaunchers: {
       ChromeHeadlessNoSandbox: {
         base: 'ChromeHeadless',

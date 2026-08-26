@@ -5,8 +5,12 @@ import com.hireflow.posting.entity.PostingStatus;
 import com.hireflow.support.AbstractIntegrationTest;
 import com.hireflow.user.entity.Role;
 import com.hireflow.user.entity.User;
+import com.jayway.jsonpath.JsonPath;
 import org.junit.jupiter.api.Test;
 
+import java.util.List;
+
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -24,8 +28,8 @@ class PostingIntegrationTest extends AbstractIntegrationTest {
 
         mockMvc.perform(get("/api/postings").header("Authorization", bearerToken(candidate)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[?(@.id == " + open.getId() + ")]").exists())
-                .andExpect(jsonPath("$[?(@.id == " + closed.getId() + ")]").doesNotExist());
+                .andExpect(jsonPath("$.content[?(@.id == " + open.getId() + ")]").exists())
+                .andExpect(jsonPath("$.content[?(@.id == " + closed.getId() + ")]").doesNotExist());
     }
 
     @Test
@@ -36,13 +40,51 @@ class PostingIntegrationTest extends AbstractIntegrationTest {
 
         mockMvc.perform(get("/api/postings").header("Authorization", bearerToken(admin)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[?(@.id == " + open.getId() + ")]").exists())
-                .andExpect(jsonPath("$[?(@.id == " + closed.getId() + ")]").exists());
+                .andExpect(jsonPath("$.content[?(@.id == " + open.getId() + ")]").exists())
+                .andExpect(jsonPath("$.content[?(@.id == " + closed.getId() + ")]").exists());
     }
 
     @Test
     void list_withoutAuthentication_returns401() throws Exception {
         mockMvc.perform(get("/api/postings")).andExpect(status().isUnauthorized());
+    }
+
+    /**
+     * The postings endpoint has no filter to scope down to just this test's data (unlike
+     * applications' postingId filter), so - since the shared test DB accumulates postings across
+     * the whole suite run - this asserts the page/size metadata is echoed correctly and that two
+     * consecutive pages return genuinely different rows, rather than pinning an exact total.
+     */
+    @Test
+    void list_pagination_returnsDistinctPagesWithCorrectMetadata() throws Exception {
+        User admin = createUser(Role.ADMIN);
+        createPosting(admin, PostingStatus.OPEN);
+        createPosting(admin, PostingStatus.OPEN);
+        createPosting(admin, PostingStatus.OPEN);
+
+        String page0Json = mockMvc.perform(get("/api/postings")
+                        .header("Authorization", bearerToken(admin))
+                        .param("page", "0")
+                        .param("size", "2"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content.length()").value(2))
+                .andExpect(jsonPath("$.page").value(0))
+                .andExpect(jsonPath("$.size").value(2))
+                .andExpect(jsonPath("$.hasNext").value(true))
+                .andReturn().getResponse().getContentAsString();
+
+        String page1Json = mockMvc.perform(get("/api/postings")
+                        .header("Authorization", bearerToken(admin))
+                        .param("page", "1")
+                        .param("size", "2"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.page").value(1))
+                .andExpect(jsonPath("$.size").value(2))
+                .andReturn().getResponse().getContentAsString();
+
+        List<Integer> page0Ids = JsonPath.read(page0Json, "$.content[*].id");
+        List<Integer> page1Ids = JsonPath.read(page1Json, "$.content[*].id");
+        assertThat(page0Ids).doesNotContainAnyElementsOf(page1Ids);
     }
 
     @Test

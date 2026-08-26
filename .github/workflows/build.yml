@@ -67,7 +67,15 @@ jobs:
       # DOCKER_HOST/Ryuk workarounds needed here (those are this project's local-machine-only
       # quirk, documented in the README).
       - name: Bring up the full stack (Postgres + backend + frontend)
-        run: docker compose --profile full up -d --build
+        # The auth rate limiter is disabled for the e2e stack, the same way it's disabled for
+        # the backend integration suite (src/test/resources/application-test.yml). The e2e specs
+        # seed each scenario by registering and logging in several throwaway accounts in quick
+        # succession from a single client IP, which trips any production-realistic per-IP
+        # threshold and fails the run with 429s that say nothing about the code under test. The
+        # limiter's actual behavior is covered by TokenBucketRateLimiterTest and
+        # RateLimitingFilterTest instead. Note this overrides only the *test* stack - a plain
+        # `docker compose --profile full up` still runs with the limiter enabled.
+        run: AUTH_RATE_LIMIT_ENABLED=false docker compose --profile full up -d --build
 
       - name: Wait for backend and frontend to respond
         run: |

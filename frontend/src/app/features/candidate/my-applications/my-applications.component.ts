@@ -5,12 +5,14 @@ import { ApplicationService } from '../../../core/services/application.service';
 import { PostingService } from '../../../core/services/posting.service';
 import { ApplicationResponse, TERMINAL_STATUSES } from '../../../core/models/application.model';
 import { extractErrorMessage } from '../../../core/utils/api-error.util';
-import { flashElement } from '../../../shared/animation/flash-element';
+import { flashElement, revealList } from '../../../shared/animation/motion';
+import { StatusBadgeComponent } from '../../../shared/status-badge/status-badge.component';
+import { PipelineProgressComponent } from '../../../shared/pipeline-progress/pipeline-progress.component';
 
 @Component({
   selector: 'app-my-applications',
   standalone: true,
-  imports: [DatePipe],
+  imports: [DatePipe, StatusBadgeComponent, PipelineProgressComponent],
   templateUrl: './my-applications.component.html',
   styleUrl: './my-applications.component.css'
 })
@@ -21,6 +23,11 @@ export class MyApplicationsComponent implements OnInit {
   readonly errorMessage = signal<string | null>(null);
   readonly actionError = signal<string | null>(null);
   readonly actingOnId = signal<number | null>(null);
+
+  readonly uploadingId = signal<number | null>(null);
+  readonly uploadErrorId = signal<number | null>(null);
+  readonly uploadError = signal<string | null>(null);
+  readonly downloadingId = signal<number | null>(null);
 
   constructor(
     private applicationService: ApplicationService,
@@ -36,12 +43,16 @@ export class MyApplicationsComponent implements OnInit {
     this.errorMessage.set(null);
     forkJoin({
       applications: this.applicationService.mine(),
-      postings: this.postingService.list()
+      // Large size purely to resolve posting titles for display - a metadata lookup, not the
+      // paginated browse view (that's postings-list.component.ts).
+      postings: this.postingService.list(0, 200)
     }).subscribe({
       next: ({ applications, postings }) => {
         this.applications.set(applications);
-        this.postingTitles.set(new Map(postings.map((p) => [p.id, p.title])));
+        this.postingTitles.set(new Map(postings.content.map((p) => [p.id, p.title])));
         this.loading.set(false);
+        // Deferred a frame so the rows exist in the DOM before the stagger queries for them.
+        requestAnimationFrame(() => revealList('tbody tr[id^="app-row-"]'));
       },
       error: (err) => {
         this.errorMessage.set(extractErrorMessage(err));
@@ -80,5 +91,59 @@ export class MyApplicationsComponent implements OnInit {
         this.actionError.set(extractErrorMessage(err));
       }
     });
+  }
+
+  onResumeFileSelected(application: ApplicationResponse, event: Event): void {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0];
+    if (!file) {
+      return;
+    }
+    this.uploadingId.set(application.id);
+    this.uploadErrorId.set(null);
+    this.uploadError.set(null);
+    this.applicationService.uploadResume(application.id, file).subscribe({
+      next: (updated) => {
+        this.uploadingId.set(null);
+        this.applications.update((list) => list.map((a) => (a.id === updated.id ? updated : a)));
+        input.value = ''; // allow re-selecting the same filename later
+      },
+      error: (err) => {
+        this.uploadingId.set(null);
+        this.uploadErrorId.set(application.id);
+        this.uploadError.set(extractErrorMessage(err));
+        input.value = '';
+      }
+    });
+  }
+
+  downloadResume(application: ApplicationResponse): void {
+    this.downloadingId.set(application.id);
+    this.applicationService.downloadResume(application.id).subscribe({
+      next: (response) => {
+        this.downloadingId.set(null);
+        const blob = response.body;
+        if (!blob) {
+          return;
+        }
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = application.resumeFilename ?? 'resume.pdf';
+        link.click();
+        URL.revokeObjectURL(url);
+      },
+      error: (err) => {
+        this.downloadingId.set(null);
+        this.actionError.set(extractErrorMessage(err));
+      }
+    });
+  }
+
+  formatSize(bytes: number | null): string {
+    if (bytes == null) {
+      return '';
+    }
+    return `${(bytes / 1024).toFixed(0)} KB`;
   }
 }

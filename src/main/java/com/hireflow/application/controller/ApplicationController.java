@@ -6,12 +6,20 @@ import com.hireflow.application.dto.ApplyRequest;
 import com.hireflow.application.dto.StatusUpdateRequest;
 import com.hireflow.application.service.ApplicationService;
 import com.hireflow.application.transition.ApplicationStatus;
+import com.hireflow.common.dto.PageResponse;
 import com.hireflow.security.CustomUserDetails;
 import jakarta.validation.Valid;
+import org.springframework.core.io.Resource;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 
@@ -42,10 +50,11 @@ public class ApplicationController {
 
     @GetMapping
     @PreAuthorize("hasAnyRole('RECRUITER', 'ADMIN')")
-    public List<ApplicationResponse> list(
+    public PageResponse<ApplicationResponse> list(
             @RequestParam(required = false) Long postingId,
-            @RequestParam(required = false) ApplicationStatus status) {
-        return applicationService.list(postingId, status);
+            @RequestParam(required = false) ApplicationStatus status,
+            @PageableDefault(size = 20, sort = "id", direction = Sort.Direction.DESC) Pageable pageable) {
+        return applicationService.list(postingId, status, pageable);
     }
 
     /**
@@ -70,5 +79,24 @@ public class ApplicationController {
             @PathVariable Long id,
             @AuthenticationPrincipal CustomUserDetails currentUser) {
         return applicationService.events(id, currentUser);
+    }
+
+    /** Owner-only (enforced in the service, same pattern as updateStatus). Replaces any existing resume. */
+    @PostMapping(value = "/{id}/resume", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PreAuthorize("hasRole('CANDIDATE')")
+    public ApplicationResponse uploadResume(
+            @PathVariable Long id,
+            @RequestParam("file") MultipartFile file,
+            @AuthenticationPrincipal CustomUserDetails currentUser) {
+        return applicationService.uploadResume(id, file, currentUser);
+    }
+
+    /** Owning CANDIDATE, or RECRUITER/ADMIN - same visibility rule as {@link #events}. */
+    @GetMapping("/{id}/resume")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<Resource> downloadResume(
+            @PathVariable Long id,
+            @AuthenticationPrincipal CustomUserDetails currentUser) {
+        return applicationService.downloadResume(id, currentUser);
     }
 }
