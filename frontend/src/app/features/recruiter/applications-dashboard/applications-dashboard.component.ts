@@ -16,6 +16,7 @@ import { extractErrorMessage } from '../../../core/utils/api-error.util';
 import { flashElement, revealList, advanceCard } from '../../../shared/animation/motion';
 import { StatusBadgeComponent } from '../../../shared/status-badge/status-badge.component';
 import { PagerComponent } from '../../../shared/pager/pager.component';
+import { PipelineProgressComponent } from '../../../shared/pipeline-progress/pipeline-progress.component';
 
 const ALL_STATUSES: ApplicationStatus[] = [
   'APPLIED',
@@ -32,7 +33,7 @@ type ViewMode = 'table' | 'kanban';
 @Component({
   selector: 'app-applications-dashboard',
   standalone: true,
-  imports: [FormsModule, DatePipe, StatusBadgeComponent, PagerComponent],
+  imports: [FormsModule, DatePipe, StatusBadgeComponent, PagerComponent, PipelineProgressComponent],
   templateUrl: './applications-dashboard.component.html',
   styleUrl: './applications-dashboard.component.css'
 })
@@ -245,6 +246,11 @@ export class ApplicationsDashboardComponent implements OnInit {
         const map = new Map(this.eventsByApplication());
         map.set(applicationId, events);
         this.eventsByApplication.set(map);
+        // Reveal the trail oldest-to-newest. The audit log is a sequence of things that happened
+        // in order, so letting the entries arrive in that order reads as a history unfolding
+        // rather than a block of text appearing. Scoped to this application's list so expanding a
+        // second row doesn't re-animate the first.
+        requestAnimationFrame(() => revealList(`#events-${applicationId} li`, { stagger: 45 }));
       },
       error: (err) => {
         this.eventsLoadingId.set(null);

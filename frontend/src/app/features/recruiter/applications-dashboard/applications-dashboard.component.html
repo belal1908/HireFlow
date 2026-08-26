@@ -106,7 +106,7 @@
                 } @else if (eventsFor(app.id).length === 0) {
                   <p class="muted">No events recorded.</p>
                 } @else {
-                  <ul class="events-list">
+                  <ul class="events-list" [id]="'events-' + app.id">
                     @for (event of eventsFor(app.id); track event.id) {
                       <li>
                         <span class="event-transition">{{ event.fromStatus ?? '—' }} → {{ event.toStatus }}</span>
@@ -147,6 +147,7 @@
               <div class="kanban-card" [id]="'app-row-' + app.id">
                 <div class="kanban-card-title">{{ postingTitle(app.jobPostingId) }}</div>
                 <div class="kanban-card-meta">Candidate #{{ app.candidateId }} · {{ app.updatedAt | date: 'short' }}</div>
+                <app-pipeline-progress [status]="app.status" />
                 @if (app.resumeFilename) {
                   <button
                     type="button"

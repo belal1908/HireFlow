@@ -31,7 +31,7 @@ GitHub Actions CI workflow. See "End-to-end tests", "Full stack via Docker Compo
 - Angular 18+, standalone components throughout (no NgModules)
 - Functional route guards (`CanActivateFn`) and a functional `HttpInterceptorFn` for auth
 - RxJS for the token-refresh coordination; no state-management library — not needed at this scope
-- anime.js for one small, deliberately restrained transition (see below) — not a design system
+- anime.js v4 for motion that tracks the pipeline metaphor, centralised in one module (see below)
 - Karma/Jasmine for unit tests (the scaffolded default)
 
 ## Project layout
@@ -207,10 +207,46 @@ Feature areas, one route tree per role:
   `core/services/user.service.ts` and `core/models/user.model.ts` (mirroring `PostingService`/
   `posting.model.ts`), routed at `/admin/users` behind `roleGuard('ADMIN')`
 
-One small use of **anime.js**: `shared/animation/flash-element.ts` briefly highlights a table row
-right after its status changes, so a successful transition/withdraw/accept reads as "this row just
-changed" instead of silently re-rendering. It's the only place anime.js is used — the point of
-this project is still the guards/interceptor/standalone-component patterns above, not motion design.
+### Motion and responsiveness
+
+Motion here is in service of one idea — an application *moves through a pipeline* — so it is used
+where it makes a state change easier to follow and essentially nowhere else. The bar for adding an
+animation was "does this clarify something", not "does this look lively"; this is a recruiting
+tool, not a landing page.
+
+Everything runs through `shared/animation/motion.ts` (anime.js v4), which owns the shared duration
+and easing scale and, more importantly, checks `prefers-reduced-motion` in exactly one place
+instead of leaving each call site to remember. Reduced motion removes the *movement*, never the
+outcome — callers still land on the correct end state instantly. `styles.css` carries a CSS
+backstop for the same preference, which also covers plain transitions and still applies if a
+script fails to load.
+
+What actually animates:
+
+- **`PipelineProgressComponent`** — a stepper rendering APPLIED → SCREENING → INTERVIEW → OFFER →
+  ACCEPTED with a track that fills to the current stage, shown on the candidate's applications and
+  on each kanban card. This is the one piece of UI that makes the state machine — the point of the
+  whole project — visible at a glance rather than as a single status word. The fill animates only
+  when a status *changes* while you're watching; on first paint it's set directly, since twenty
+  rows animating their pipelines at once would be noise.
+- **Kanban card advance** — the card lifts and slides out of its column, then reappears in the new
+  one. The recruiter's core action, made tangible.
+- **Staggered list entrance** and a **row flash** on in-place status changes. The table gets the
+  flash rather than a slide, because the row doesn't move — only its status cell changes, and
+  animating movement that didn't happen would be a lie.
+- **Audit trail reveal** — entries arrive oldest-to-newest, so a history reads as unfolding.
+
+Deliberately *not* built: a rolling counter for the kanban column totals. It means driving an
+element's `textContent` by hand while Angular is also binding it, and the card animation already
+communicates that something moved. Left out rather than half-built.
+
+**Responsiveness** is a first pass, and worth being honest about: before it the project had no
+media queries at all, so the nav clipped on a phone and tables pushed the page sideways. Now the
+nav wraps to two rows (no hamburger — there are only a handful of links, so a menu would add
+interaction cost for no gain), tables scroll within their own container, and the kanban
+snap-scrolls horizontally. The board deliberately still scrolls sideways on mobile rather than
+stacking: a pipeline *is* a horizontal sequence, and stacking would destroy the left-to-right
+reading that makes the view worth having.
 
 ### Running the frontend
 
@@ -240,6 +276,17 @@ count didn't move; the screen was instead verified live in a browser (below).
 (`karma.conf.js` documents this and ships a `ChromeHeadlessNoSandbox` custom launcher for it,
 which is what was actually used to produce the 14/14 result above: `ng test --watch=false
 --browsers=ChromeHeadlessNoSandbox`). Not a project requirement on a normal machine.
+
+### Build config note: anime.js and Vite prebundling
+
+`angular.json` excludes `animejs` from the dev server's Vite prebundling. This is not
+cargo-culting: anime.js v4 ships both CJS and ESM, and its `exports` map lists the CJS build as
+the `default` condition, so the dev server resolved it to CJS and served it as an ES module. The
+result was `does not provide an export named 'animate'` at *runtime* only — `ng build` and
+`tsc --noEmit` both passed cleanly, because the production esbuild pipeline resolves it correctly.
+The visible symptom was unrelated-looking: a component threw during construction, route activation
+aborted, and the e2e suite failed with "element not found" on a page that had silently refused to
+navigate. Excluding it from prebundling hands it to the same esbuild path production already used.
 
 ### Backend changes for the frontend
 

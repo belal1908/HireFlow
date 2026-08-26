@@ -135,31 +135,11 @@ export function advanceCard(el: HTMLElement, direction: 'forward' | 'out' = 'for
   return tl.then(() => undefined);
 }
 
-/**
- * Counts a number up/down in place (kanban column totals). Small touch, but when a card moves
- * between columns it makes both the source and destination counts visibly react, which is the
- * feedback that the move actually landed somewhere.
+/*
+ * Deliberately absent: a rolling counter for the kanban column totals. Writing one means driving
+ * an element's textContent imperatively while Angular is also binding it, so the two fight over
+ * the same node and the "fix" is to stop binding it and own the render by hand. That is a real
+ * complexity cost for a number that ticks from 8 to 9, and the movement is already communicated
+ * by the card animating out of one column and revealing in the next. Left out on purpose rather
+ * than half-built.
  */
-export function animateCount(el: HTMLElement, from: number, to: number): void {
-  if (from === to) {
-    return;
-  }
-
-  withMotion(
-    () => {
-      const state = { value: from };
-      animate(state, {
-        value: to,
-        duration: DURATION.base,
-        ease: EASE.out,
-        modifier: utils.round(0),
-        onUpdate: () => {
-          el.textContent = String(Math.round(state.value));
-        }
-      });
-    },
-    () => {
-      el.textContent = String(to);
-    }
-  );
-}
