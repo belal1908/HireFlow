@@ -145,6 +145,33 @@ covered: creating an ADMIN account; CANDIDATE and RECRUITER callers get 403; una
 401; `role: CANDIDATE` gets 400; missing/invalid role gets 400; duplicate email (including one
 already taken by a self-registered CANDIDATE) gets 409; invalid email and short password get 400.
 
+### Résumé storage
+
+`POST/GET /api/applications/{id}/resume` let a candidate attach a PDF to their own application
+and let recruiters/admins read it back. Only *metadata* (original filename, size, content type,
+upload timestamp) lives on the `Application` row; the bytes go to disk under
+`hireflow.resume.storage-dir` (default `./data/resumes`, gitignored), not into a BLOB column, so
+the database stays small and downloads stream rather than being loaded into memory.
+
+Two deliberate choices worth calling out:
+
+- **The client's filename never touches the filesystem path.** Every file is written under a
+  freshly generated UUID; the original name is kept purely as display metadata and for the
+  `Content-Disposition` header on download. A filename like `../../etc/passwd` therefore cannot
+  influence where anything lands. `ResumeStorageService` re-checks the resolved path is still
+  inside the storage directory as a second line of defence.
+- **PDF is verified by magic bytes, not just the declared content type.** A client can claim any
+  `Content-Type`; the first bytes of the upload are checked against `%PDF-` as well. Oversized
+  uploads (>5MB by default, `RESUME_MAX_SIZE_BYTES`) are rejected with 400.
+
+**Known limitations** (single-instance local disk, stated plainly rather than implied):
+`docker-compose.yml` mounts a named volume at `/app/data/resumes` so files survive the backend
+container being recreated — but this is still per-instance storage. Multiple horizontally-scaled
+backend replicas would each see only their own uploads; that needs shared storage (NFS, S3, or
+similar), which is out of scope here. The Docker image also has to create that directory and hand
+it to the non-root runtime user at build time: the app calls `Files.createDirectories()` during
+startup, and when `/app` was left root-owned the container exited before Tomcat ever bound a port.
+
 ## Frontend
 
 `frontend/` is a standalone-components Angular app. It exists to demonstrate three specific

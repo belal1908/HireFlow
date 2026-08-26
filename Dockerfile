@@ -22,7 +22,15 @@ WORKDIR /app
 
 RUN addgroup -S hireflow && adduser -S hireflow -G hireflow
 COPY --from=build /build/target/hireflow-*.jar /app/app.jar
-RUN chown hireflow:hireflow /app/app.jar
+
+# Create the résumé storage directory up front and hand both it and the jar to the runtime user.
+# ResumeStorageService calls Files.createDirectories() on this path during bean construction, and
+# /app itself is root-owned - without this the non-root user cannot create it, the bean throws,
+# and the container exits before Tomcat ever binds a port. (Learned the hard way: the container
+# failed to start in CI and the e2e job just timed out waiting for a backend that was never
+# coming up.) Keep this path in sync with hireflow.resume.storage-dir in application.yml.
+RUN mkdir -p /app/data/resumes \
+    && chown -R hireflow:hireflow /app/app.jar /app/data
 USER hireflow
 
 EXPOSE 8080
