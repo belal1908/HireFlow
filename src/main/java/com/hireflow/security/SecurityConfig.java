@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.hireflow.common.dto.ApiError;
 import com.hireflow.common.logging.RequestIdFilter;
 import jakarta.servlet.http.HttpServletResponse;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpStatus;
@@ -42,16 +43,19 @@ public class SecurityConfig {
     private final RateLimitingFilter rateLimitingFilter;
     private final RequestIdFilter requestIdFilter;
     private final ObjectMapper objectMapper;
+    private final List<String> allowedOrigins;
 
     public SecurityConfig(
             JwtAuthenticationFilter jwtAuthenticationFilter,
             RateLimitingFilter rateLimitingFilter,
             RequestIdFilter requestIdFilter,
-            ObjectMapper objectMapper) {
+            ObjectMapper objectMapper,
+            @Value("${hireflow.cors.allowed-origins}") List<String> allowedOrigins) {
         this.jwtAuthenticationFilter = jwtAuthenticationFilter;
         this.rateLimitingFilter = rateLimitingFilter;
         this.requestIdFilter = requestIdFilter;
         this.objectMapper = objectMapper;
+        this.allowedOrigins = allowedOrigins;
     }
 
     @Bean
@@ -60,16 +64,18 @@ public class SecurityConfig {
     }
 
     /**
-     * CORS for the Angular dev server (Week 2 frontend addition). The API is called
-     * cross-origin from {@code ng serve} (default {@code http://localhost:4200}), which the
-     * browser blocks by default since this app has no CORS policy otherwise. Access tokens are
-     * sent via an {@code Authorization} header (not a cookie), so credentials/cookies are not
-     * needed here - {@code allowCredentials} is deliberately left at its default (false).
+     * CORS for the Angular frontend (Week 2 frontend addition). The API is called cross-origin
+     * from the frontend's own origin - {@code http://localhost:4200} for the local dev server by
+     * default, overridable via {@code CORS_ALLOWED_ORIGINS} (comma-separated) for a real
+     * deployment where frontend and backend are on different hosts - which the browser blocks by
+     * default since this app has no CORS policy otherwise. Access tokens are sent via an
+     * {@code Authorization} header (not a cookie), so credentials/cookies are not needed here -
+     * {@code allowCredentials} is deliberately left at its default (false).
      */
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOrigins(List.of("http://localhost:4200"));
+        configuration.setAllowedOrigins(allowedOrigins);
         configuration.setAllowedMethods(List.of("GET", "POST", "PATCH", "PUT", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(List.of("Authorization", "Content-Type"));
 

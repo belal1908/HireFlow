@@ -2,9 +2,12 @@
 
 ![build](https://github.com/belal1908/HireFlow/actions/workflows/build.yml/badge.svg)
 
-*The badge above points at `belal1908/HireFlow` on GitHub Actions. It will only render/go green
-once this repository is actually pushed there and the workflow has run — as of this commit that
-hasn't happened yet, so treat the badge as "wired up, not yet live" rather than a live status.*
+**Live demo**: [hireflow-frontend-zg69.onrender.com](https://hireflow-frontend-zg69.onrender.com)
+(backend: [hireflow-backend-c3mv.onrender.com](https://hireflow-backend-c3mv.onrender.com)) — free
+tiers throughout (Render web service + static site, Neon Postgres). The backend's free web service
+spins down after 15 minutes idle, so the **first request after a while can take 30-50s to wake it
+up** — a known, expected tradeoff of a free deploy, not a bug. Log in as `admin@hireflow.demo` /
+`DemoAdmin2026!` to see the ADMIN view, or register a new account to see the CANDIDATE flow.
 
 A role-aware recruiting pipeline for small teams: candidates apply, recruiters move applications
 through a strictly-enforced state machine, admins manage postings, and every status change is
@@ -826,6 +829,52 @@ verifying, `docker compose stop backend frontend` was run, leaving `postgres` ru
 was found — host ports 8080/4200 are free again. The containerized frontend image will pick up the
 redesign automatically on its next `--build` (nothing about the Dockerfile/nginx setup changed),
 but that rebuild itself hasn't been re-verified since the redesign.
+
+## Live deploy
+
+Three free-tier services, none sharing a host with the local Docker Compose setup above:
+
+- **Neon** — serverless Postgres, free tier, no expiry.
+- **Render** (web service) — the Spring Boot backend, built from the root `Dockerfile` (the same
+  one Docker Compose uses locally). Free web services spin down after 15 minutes idle and cold-start
+  on the next request (~30-50s) — a real, known limitation of the free tier, not something worth
+  papering over.
+- **Render** (static site) — the Angular frontend, built directly from `frontend/` with
+  `npm install && npm run build` (no Docker image here — a static site doesn't need one).
+
+**Why this needed real code changes, not just deploy config.** Two things were hardcoded to
+`localhost` and had to become configurable:
+
+- CORS (`SecurityConfig#corsConfigurationSource`) was hardcoded to `http://localhost:4200`. Now
+  reads `hireflow.cors.allowed-origins` (`CORS_ALLOWED_ORIGINS`, comma-separated), defaulting to
+  `http://localhost:4200` so local dev is untouched.
+- The frontend's `apiUrl` was hardcoded to `http://localhost:8080` in `environment.ts`, used for
+  *both* `ng serve` and `ng build`. Fixing this meant giving each of the frontend's three real
+  build contexts its own environment file, wired through `angular.json`'s `fileReplacements`:
+  `environment.development.ts` (`ng serve`, unchanged), `environment.docker-compose.ts`
+  (`frontend/Dockerfile`'s build, still `localhost:8080` — the *browser* calls the API, not the
+  nginx container, and can't resolve Docker-internal service names either way), and the new
+  `environment.production.ts` (Render's static-site build, the real deployed backend URL). Getting
+  this wrong would have meant either the live frontend silently calling `localhost:8080` from a
+  visitor's own machine, or the local Docker Compose flow silently pointed at the live deploy.
+
+**The chicken-and-egg problem worth naming**: the backend needs to know the frontend's exact URL
+(for CORS) and the frontend needs to know the backend's exact URL (baked in at build time) - but
+Render only assigns each service's real URL (`<name>-<random-suffix>.onrender.com`) once it's
+created, and that suffix isn't predictable in advance. Resolved by creating the frontend service
+first (its URL, once assigned, never needs to change again), then creating the backend with that
+frontend URL already in its `CORS_ALLOWED_ORIGINS`, then committing the backend's now-known URL
+into `environment.production.ts` - one push after that point covers both sides.
+
+**Known limitations of this specific deploy**, stated plainly rather than hidden:
+- `ADMIN_BOOTSTRAP_EMAIL`/`ADMIN_BOOTSTRAP_PASSWORD` are set so a reviewer can see the ADMIN and
+  RECRUITER views without needing database access - `admin@hireflow.demo` / `DemoAdmin2026!`. This
+  is a demo-only credential for a portfolio deploy with no real data in it, not a pattern to copy
+  for an actual production bootstrap.
+- Résumé storage (`hireflow.resume.storage-dir`) writes to the backend container's local
+  filesystem, which is ephemeral on Render's free tier (no persistent disk on the free plan) - so
+  the résumé upload feature will lose stored files on every redeploy/restart. Acceptable for a
+  free-tier demo, not for anything real.
 
 ## Continuous integration
 

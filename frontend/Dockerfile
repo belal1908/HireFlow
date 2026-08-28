@@ -1,12 +1,12 @@
-# Multi-stage build for the Angular frontend.
+# Multi-stage build for the Angular frontend, used by docker-compose.yml's "full" profile
+# (local full-stack Docker Compose - NOT how the live Render deploy is built; that's a separate
+# static-site build with its own environment file, see the README's "Live deploy" section).
 #
-# Stage 1 installs deps and runs a production `ng build`. The production configuration is
-# Angular's `defaultConfiguration` here (see angular.json), so no --configuration flag is
-# needed and no environment file swap happens: the app ships with `environment.ts`, whose
-# `apiUrl` is `http://localhost:8080` — correct for a browser-rendered SPA, since the browser
-# (not the nginx container) makes the API calls and can't resolve Docker-internal service
-# names. That only works if the backend container also publishes port 8080 to the host, which
-# docker-compose.yml does.
+# Stage 1 installs deps and builds with the "docker-compose" configuration (see angular.json),
+# which swaps in environment.docker-compose.ts: `apiUrl` = `http://localhost:8080` — correct for
+# a browser-rendered SPA in this specific context, since the browser (not the nginx container)
+# makes the API calls and can't resolve Docker-internal service names. That only works because
+# the backend container also publishes port 8080 to the host, which docker-compose.yml does.
 #
 # Stage 2 serves the built static files with nginx.
 
@@ -26,7 +26,7 @@ COPY package.json package-lock.json ./
 RUN npm install
 
 COPY . .
-RUN npm run build
+RUN npm run build -- --configuration=docker-compose
 
 # ---- Runtime stage ----
 FROM nginx:1.27-alpine AS runtime
