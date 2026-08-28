@@ -2,6 +2,7 @@
   "name": "hireflow-e2e",
   "version": "0.0.0",
   "private": true,
+  "license": "MIT",
   "description": "Playwright end-to-end suite for HireFlow: exercises all three roles against the real running stack (frontend + backend + Postgres), including direct API-level negative/authorization proofs.",
   "scripts": {
     "test": "playwright test",

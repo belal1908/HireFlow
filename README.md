@@ -1,6 +1,7 @@
 # HireFlow
 
 ![build](https://github.com/belal1908/HireFlow/actions/workflows/build.yml/badge.svg)
+![license](https://img.shields.io/badge/license-MIT-blue.svg)
 
 **Live demo**: [hireflow-frontend-zg69.onrender.com](https://hireflow-frontend-zg69.onrender.com)
 (backend: [hireflow-backend-c3mv.onrender.com](https://hireflow-backend-c3mv.onrender.com)), free

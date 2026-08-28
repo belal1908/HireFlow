@@ -18,6 +18,14 @@
     <description>HireFlow - role-aware recruiting pipeline with an enforced state machine and audit trail</description>
     <packaging>jar</packaging>
 
+    <licenses>
+        <license>
+            <name>MIT License</name>
+            <url>https://opensource.org/licenses/MIT</url>
+            <distribution>repo</distribution>
+        </license>
+    </licenses>
+
     <properties>
         <java.version>21</java.version>
         <jjwt.version>0.12.6</jjwt.version>
