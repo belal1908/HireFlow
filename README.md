@@ -866,6 +866,21 @@ first (its URL, once assigned, never needs to change again), then creating the b
 frontend URL already in its `CORS_ALLOWED_ORIGINS`, then committing the backend's now-known URL
 into `environment.production.ts` - one push after that point covers both sides.
 
+**A real bug this surfaced**: a hard navigation to any client-side route other than `/` (e.g.
+`/register`, refreshing on `/settings`) returned a literal 404. Locally this is a non-issue - nginx
+already handles it (`try_files $uri $uri/ /index.html` in `nginx.conf`) - but Render's static-site
+host doesn't run nginx and doesn't do this by default. The first fix attempted was a Netlify-style
+`frontend/public/_redirects` file (`/*  /index.html  200`), on the assumption Render auto-detects
+it the way Netlify does - it doesn't; the file gets served as a literal static asset, not read as
+routing config, so the 404 persisted even after that deploy went live. The actual fix is a rewrite
+rule configured directly on the service (Render dashboard → Redirects/Rewrites, or the equivalent
+in a `render.yaml`, neither of which the CLI used to create these services exposes): `/*` →
+`/index.html` as a **Rewrite** (not a Redirect - a redirect would change the URL in the address
+bar; a rewrite serves `index.html`'s content while leaving the requested path alone, which is what
+lets Angular's router take over). Applied instantly, no rebuild needed. The `_redirects` file was
+left in place since it's harmless and is the correct mechanism for a Netlify-style host, but it is
+not what makes routing work on this deploy.
+
 **Known limitations of this specific deploy**, stated plainly rather than hidden:
 - `ADMIN_BOOTSTRAP_EMAIL`/`ADMIN_BOOTSTRAP_PASSWORD` are set so a reviewer can see the ADMIN and
   RECRUITER views without needing database access - `admin@hireflow.demo` / `DemoAdmin2026!`. This
