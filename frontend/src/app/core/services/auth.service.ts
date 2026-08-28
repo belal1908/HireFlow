@@ -4,6 +4,9 @@ import { Observable, finalize, shareReplay, tap, throwError } from 'rxjs';
 import { environment } from '../../../environments/environment';
 import {
   AuthResponse,
+  EmailVerificationConfirmRequest,
+  EmailVerificationRequest,
+  EmailVerificationResponse,
   LoginRequest,
   PasswordResetConfirmRequest,
   PasswordResetRequest,
@@ -80,6 +83,14 @@ export class AuthService {
     return this.http.post<void>(`${environment.apiUrl}/api/auth/password-reset/confirm`, request);
   }
 
+  requestEmailVerification(request: EmailVerificationRequest): Observable<EmailVerificationResponse> {
+    return this.http.post<EmailVerificationResponse>(`${environment.apiUrl}/api/auth/email-verification/request`, request);
+  }
+
+  confirmEmailVerification(request: EmailVerificationConfirmRequest): Observable<void> {
+    return this.http.post<void>(`${environment.apiUrl}/api/auth/email-verification/confirm`, request);
+  }
+
   logout(): void {
     this.accessToken = null;
     this.refreshTokenValue = null;
@@ -112,7 +123,7 @@ export class AuthService {
       // JWT uses base64url; atob() needs standard base64, so translate the alphabet first.
       const base64 = payload.replace(/-/g, '+').replace(/_/g, '/');
       const decoded: DecodedAccessToken = JSON.parse(atob(base64));
-      return { id: Number(decoded.sub), email: decoded.email, role: decoded.role };
+      return { id: Number(decoded.sub), email: decoded.email, role: decoded.role, emailVerified: decoded.emailVerified };
     } catch {
       return null;
     }

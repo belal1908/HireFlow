@@ -62,6 +62,7 @@ public class AdminBootstrapRunner implements CommandLineRunner {
                 .email(normalizedEmail)
                 .passwordHash(passwordEncoder.encode(bootstrapPassword))
                 .role(Role.ADMIN)
+                .emailVerified(true)
                 .build();
         userRepository.save(admin);
         log.info("Bootstrapped initial ADMIN account: {}", normalizedEmail);

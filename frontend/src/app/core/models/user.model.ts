@@ -7,6 +7,7 @@ export interface UserResponse {
   email: string;
   role: Role;
   createdAt: string;
+  emailVerified: boolean;
 }
 
 /**
@@ -30,6 +31,7 @@ export interface DecodedAccessToken {
   sub: string;
   email: string;
   role: Role;
+  emailVerified: boolean;
   iat: number;
   exp: number;
 }
@@ -39,4 +41,5 @@ export interface CurrentUser {
   id: number;
   email: string;
   role: Role;
+  emailVerified: boolean;
 }

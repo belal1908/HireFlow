@@ -6,6 +6,7 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.hibernate.annotations.ColumnDefault;
 
 import java.time.Instant;
 
@@ -34,6 +35,18 @@ public class User {
 
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
+
+    /**
+     * {@code @ColumnDefault("false")} (a real Postgres {@code DEFAULT}, not just app-level) so
+     * {@code ddl-auto: update} can add this column to an already-populated table - a plain
+     * {@code NOT NULL} column with no default fails to backfill existing rows. Self-registered
+     * accounts start unverified ({@code AuthService#register}); admin-created and bootstrap
+     * accounts start verified (vouched for by an existing admin, not self-service - see
+     * {@code AdminUserService#createUser} / {@code AdminBootstrapRunner}).
+     */
+    @Column(name = "email_verified", nullable = false)
+    @ColumnDefault("false")
+    private boolean emailVerified;
 
     @PrePersist
     protected void onCreate() {

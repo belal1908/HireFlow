@@ -56,6 +56,8 @@ public class AdminUserService {
                 .email(normalizedEmail)
                 .passwordHash(passwordEncoder.encode(request.password()))
                 .role(request.role())
+                // Vouched for by an existing admin, not self-service - see User#emailVerified.
+                .emailVerified(true)
                 .build();
 
         User saved = userRepository.save(user);

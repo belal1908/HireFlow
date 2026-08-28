@@ -1,14 +1,19 @@
 package com.hireflow.auth.service;
 
 import com.hireflow.auth.dto.AuthResponse;
+import com.hireflow.auth.dto.EmailVerificationConfirmRequest;
+import com.hireflow.auth.dto.EmailVerificationRequest;
+import com.hireflow.auth.dto.EmailVerificationResponse;
 import com.hireflow.auth.dto.LoginRequest;
 import com.hireflow.auth.dto.PasswordResetConfirmRequest;
 import com.hireflow.auth.dto.PasswordResetRequest;
 import com.hireflow.auth.dto.PasswordResetResponse;
 import com.hireflow.auth.dto.RefreshRequest;
 import com.hireflow.auth.dto.RegisterRequest;
+import com.hireflow.auth.entity.EmailVerificationToken;
 import com.hireflow.auth.entity.PasswordResetToken;
 import com.hireflow.auth.entity.RefreshToken;
+import com.hireflow.auth.repository.EmailVerificationTokenRepository;
 import com.hireflow.auth.repository.PasswordResetTokenRepository;
 import com.hireflow.auth.repository.RefreshTokenRepository;
 import com.hireflow.common.exception.BadRequestException;
@@ -46,33 +51,40 @@ public class AuthService {
     private static final SecureRandom SECURE_RANDOM = new SecureRandom();
     private static final int REFRESH_TOKEN_BYTES = 64;
     private static final int PASSWORD_RESET_TOKEN_BYTES = 32;
+    private static final int EMAIL_VERIFICATION_TOKEN_BYTES = 32;
 
     private final UserRepository userRepository;
     private final RefreshTokenRepository refreshTokenRepository;
     private final PasswordResetTokenRepository passwordResetTokenRepository;
+    private final EmailVerificationTokenRepository emailVerificationTokenRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
     private final HttpServletRequest httpRequest;
     private final Duration refreshTokenTtl;
     private final Duration passwordResetTokenTtl;
+    private final Duration emailVerificationTokenTtl;
 
     public AuthService(
             UserRepository userRepository,
             RefreshTokenRepository refreshTokenRepository,
             PasswordResetTokenRepository passwordResetTokenRepository,
+            EmailVerificationTokenRepository emailVerificationTokenRepository,
             PasswordEncoder passwordEncoder,
             JwtService jwtService,
             HttpServletRequest httpRequest,
             @Value("${hireflow.jwt.refresh-token-ttl-days}") long refreshTokenTtlDays,
-            @Value("${hireflow.password-reset.token-ttl-minutes}") long passwordResetTokenTtlMinutes) {
+            @Value("${hireflow.password-reset.token-ttl-minutes}") long passwordResetTokenTtlMinutes,
+            @Value("${hireflow.email-verification.token-ttl-hours}") long emailVerificationTokenTtlHours) {
         this.userRepository = userRepository;
         this.refreshTokenRepository = refreshTokenRepository;
         this.passwordResetTokenRepository = passwordResetTokenRepository;
+        this.emailVerificationTokenRepository = emailVerificationTokenRepository;
         this.passwordEncoder = passwordEncoder;
         this.jwtService = jwtService;
         this.httpRequest = httpRequest;
         this.refreshTokenTtl = Duration.ofDays(refreshTokenTtlDays);
         this.passwordResetTokenTtl = Duration.ofMinutes(passwordResetTokenTtlMinutes);
+        this.emailVerificationTokenTtl = Duration.ofHours(emailVerificationTokenTtlHours);
     }
 
     @Transactional
@@ -230,6 +242,60 @@ public class AuthService {
 
         log.info("Password reset completed (userId={}), {} active session(s) revoked",
                 user.getId(), activeSessions.size());
+    }
+
+    /**
+     * Same dev-mode tradeoff as {@link #requestPasswordReset}, for the same reason (no SMTP
+     * infrastructure in this project): the token is returned directly instead of being emailed.
+     *
+     * <p>Collapses two different "nothing to do" cases - no account for this email, and an
+     * already-verified account - into the same null-token response, so this endpoint doesn't leak
+     * either an account's existence or its verification status to an unauthenticated caller.
+     */
+    @Transactional
+    public EmailVerificationResponse requestEmailVerification(EmailVerificationRequest request) {
+        String normalizedEmail = request.email().trim().toLowerCase();
+        Optional<User> user = userRepository.findByEmail(normalizedEmail);
+        if (user.isEmpty() || user.get().isEmailVerified()) {
+            log.info("Email verification requested for email={} - no eligible account", normalizedEmail);
+            return new EmailVerificationResponse(null, null);
+        }
+
+        String rawToken = generateRawToken(EMAIL_VERIFICATION_TOKEN_BYTES);
+        Instant expiresAt = Instant.now().plus(emailVerificationTokenTtl);
+        EmailVerificationToken verificationToken = EmailVerificationToken.builder()
+                .user(user.get())
+                .tokenHash(sha256(rawToken))
+                .expiresAt(expiresAt)
+                .used(false)
+                .build();
+        emailVerificationTokenRepository.save(verificationToken);
+        log.info("Email verification token issued (userId={})", user.get().getId());
+        return new EmailVerificationResponse(rawToken, expiresAt);
+    }
+
+    @Transactional
+    public void confirmEmailVerification(EmailVerificationConfirmRequest request) {
+        EmailVerificationToken verificationToken = emailVerificationTokenRepository.findByTokenHash(sha256(request.token()))
+                .orElseThrow(() -> {
+                    log.warn("Email verification rejected - token not recognized");
+                    return new BadRequestException("Invalid or expired verification token");
+                });
+
+        if (verificationToken.isUsed() || verificationToken.isExpired()) {
+            log.warn("Email verification rejected - {} token (userId={})",
+                    verificationToken.isUsed() ? "already-used" : "expired", verificationToken.getUser().getId());
+            throw new BadRequestException("Invalid or expired verification token");
+        }
+
+        User user = verificationToken.getUser();
+        user.setEmailVerified(true);
+        userRepository.save(user);
+
+        verificationToken.setUsed(true);
+        emailVerificationTokenRepository.save(verificationToken);
+
+        log.info("Email verified (userId={})", user.getId());
     }
 
     private AuthResponse issueTokenPair(User user) {

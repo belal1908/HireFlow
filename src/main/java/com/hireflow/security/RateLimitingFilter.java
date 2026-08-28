@@ -23,10 +23,10 @@ import java.util.Set;
 /**
  * A lightweight, in-memory, per-client-IP rate limiter scoped to just the auth endpoints that are
  * worth protecting from brute-force/credential-stuffing and registration abuse: login, register,
- * and the two password-reset endpoints (the request side is an enumeration/spam target, the
- * confirm side is a token-guessing target - both benefit from the same protection). Every other
- * endpoint is untouched (the path check below returns immediately for anything else, so the
- * overhead on the rest of the API is a single Set.contains check).
+ * and the password-reset and email-verification request/confirm pairs (each request side is an
+ * enumeration/spam target, each confirm side is a token-guessing target - all benefit from the
+ * same protection). Every other endpoint is untouched (the path check below returns immediately
+ * for anything else, so the overhead on the rest of the API is a single Set.contains check).
  *
  * <p>Wired into the security filter chain the same way as {@link JwtAuthenticationFilter} (a
  * {@code @Component} {@code OncePerRequestFilter} added via {@code addFilterBefore} in
@@ -59,7 +59,9 @@ public class RateLimitingFilter extends OncePerRequestFilter {
             "/api/auth/login",
             "/api/auth/register",
             "/api/auth/password-reset/request",
-            "/api/auth/password-reset/confirm");
+            "/api/auth/password-reset/confirm",
+            "/api/auth/email-verification/request",
+            "/api/auth/email-verification/confirm");
 
     private final TokenBucketRateLimiter rateLimiter;
     private final ObjectMapper objectMapper;

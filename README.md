@@ -93,6 +93,8 @@ validator (see `adminIsNeverAllowedAnyTransition`).
 | POST | `/api/auth/refresh` | public | Rotates the refresh token; the old one is immediately revoked (replay fails) |
 | POST | `/api/auth/password-reset/request` | public | Body: `{ email }`. Always 200; see "Password reset" below for why the token is in the response body |
 | POST | `/api/auth/password-reset/confirm` | public | Body: `{ token, newPassword }`. Single-use, TTL-bound; also revokes every active refresh token for that account |
+| POST | `/api/auth/email-verification/request` | public | Body: `{ email }`. Always 200; null token if unknown email *or* already verified — see "Email verification" below |
+| POST | `/api/auth/email-verification/confirm` | public | Body: `{ token }`. Single-use, TTL-bound (24h default) |
 | GET | `/api/postings` | authenticated | ADMIN sees OPEN + CLOSED; everyone else sees OPEN only |
 | POST | `/api/postings` | ADMIN | Creates a posting (starts OPEN) |
 | PATCH | `/api/postings/{id}` | ADMIN | Partial update (title/description/status) |
@@ -216,6 +218,53 @@ amber "DEV MODE — NO EMAIL SERVER CONFIGURED" callout with a one-click link st
 field stays editable). Verified manually end-to-end in a real browser against the running dev
 stack: register → forgot password → dev-mode token shown → follow the link → set a new password →
 old password rejected on login → new password succeeds.
+
+### Email verification
+
+Closes the README's last remaining self-contained gap ("No email verification"). Structurally
+identical to password reset (a separate `EmailVerificationToken` table, same SHA-256-hash /
+single-use / TTL-bound shape) and carries the exact same dev-mode tradeoff: no SMTP infrastructure
+exists in this project, so `POST /api/auth/email-verification/request` (body `{ email }`) returns
+the raw token directly in the response instead of emailing it — **not production-safe** for the
+same reason password reset isn't (see that section above for the full explanation; it applies here
+verbatim). The one difference: this endpoint collapses *two* "nothing to do" cases into the same
+null-token response — no account for that email, **or** the account is already verified — so it
+never reveals either an account's existence or its verification status to an unauthenticated
+caller. `POST /api/auth/email-verification/confirm` (body `{ token }`) marks the account verified;
+token TTL defaults to 24h (`hireflow.email-verification.token-ttl-hours`,
+`EMAIL_VERIFICATION_TOKEN_TTL_HOURS`) — longer than password reset's 30 minutes, since a
+verification link carries none of the same urgency as an in-progress password reset.
+
+`User.emailVerified` defaults to `false` for self-registration (`AuthService#register`) but `true`
+for accounts an ADMIN creates (`AdminUserService#createUser`) and for the bootstrap admin
+(`AdminBootstrapRunner`) — both are vouched for by an existing admin already, not self-service, so
+there's nothing to prove. The flag rides along as an `emailVerified` claim on the access-token JWT
+(`JwtService#generateAccessToken`) rather than a separate `/me` endpoint, consistent with how the
+frontend already treats the JWT as the single source of truth for `id`/`email`/`role` — see
+`core/models/user.model.ts`'s existing comment on `DecodedAccessToken`. This does **not** gate
+login or any other action; it's informational only, matching how most real products treat it (nag,
+don't block) and — just as importantly — keeping this change from touching a single `@PreAuthorize`
+rule or the existing e2e suite's assumption that registration is immediately followed by full
+access.
+
+**Frontend.** No new route: the prompt lives inline in the `/settings` Profile card (unlike
+password reset, this flow doesn't need a separate confirm page reached via a link, since the user
+requesting it is already authenticated) — a VERIFIED/NOT VERIFIED pill, and for an unverified
+account, a "Send verification token" button that reveals the same dev-mode callout pattern as
+`ForgotPasswordComponent`, with the confirm button right there since the token is already known
+client-side. Confirming calls `authService.refreshAccessToken()` immediately after, so the pill
+flips to VERIFIED without a full re-login — otherwise the stale JWT from before verification would
+keep showing NOT VERIFIED until the access token happened to expire on its own.
+
+Covered by 10 new cases across `AuthIntegrationTest`: a self-registered account's JWT claim starts
+`false`; an admin-created account's starts `true` (created via the real `POST /api/admin/users`
+path, then logged in, to prove the claim end-to-end rather than asserting a DB column); request for
+an existing unverified account returns a token; unknown email and already-verified account both
+return a null token; invalid request email → 400; a valid confirm flips the claim on the *next*
+login; garbage/unknown token, reusing an already-used token, and an expired token (backdated via
+the repository, same technique as password reset) all → 400. Verified manually end-to-end in a
+real browser too: register → Settings shows NOT VERIFIED → send token → dev-mode callout → confirm
+→ pill flips to VERIFIED with no page reload.
 
 ### Device-bound refresh tokens
 
@@ -606,12 +655,12 @@ mvn test
 ## Verified test results
 
 `mvn verify` was actually run in this environment (Docker available via a Colima daemon) and all
-**316 tests passed, 0 failures, 0 errors**:
+**326 tests passed, 0 failures, 0 errors**:
 
 - `TransitionValidatorExhaustiveTest` — 149/149 (full 7×7×3 cross-product)
 - `TransitionValidatorNegativeTest` — 35/35
 - `ApplicationIntegrationTest` — 30/30 (Testcontainers Postgres)
-- `AuthIntegrationTest` — 25/25 (Testcontainers Postgres — includes password reset, device-bound refresh tokens)
+- `AuthIntegrationTest` — 35/35 (Testcontainers Postgres — includes password reset, device-bound refresh tokens, email verification)
 - `AdminUserIntegrationTest` — 16/16 (Testcontainers Postgres)
 - `ResumeIntegrationTest` — 16/16 (Testcontainers Postgres)
 - `TransitionValidatorPositiveTest` — 12/12
@@ -813,11 +862,12 @@ actually run on GitHub.
 
 Explicitly out of scope for now:
 
-- **No email verification.** Registration only checks the email is well-formed, not that the
-  registrant actually controls it.
-- **Password reset exists but isn't production-safe** (see "Password reset" above): there's no
-  SMTP infrastructure in this project, so the reset token is returned directly in the API response
-  instead of being emailed — a real deployment needs an actual email send wired in first.
+- **Password reset and email verification both exist but aren't production-safe** (see those
+  sections above): there's no SMTP infrastructure in this project, so both tokens are returned
+  directly in their API responses instead of being emailed — a real deployment needs an actual
+  email send wired in first. Email verification is also informational-only by design: it doesn't
+  gate login or any action, it just tracks and displays whether the account has proven control of
+  its email.
 - **No multi-tenancy.** Single organization; all RECRUITER/ADMIN users see the whole pipeline.
 - **No soft-delete / posting archival** beyond the `OPEN`/`CLOSED` status.
 - **Device binding (User-Agent) is a coarse, spoofable signal, not a strong security boundary.**

@@ -1,6 +1,9 @@
 package com.hireflow.auth.controller;
 
 import com.hireflow.auth.dto.AuthResponse;
+import com.hireflow.auth.dto.EmailVerificationConfirmRequest;
+import com.hireflow.auth.dto.EmailVerificationRequest;
+import com.hireflow.auth.dto.EmailVerificationResponse;
 import com.hireflow.auth.dto.LoginRequest;
 import com.hireflow.auth.dto.PasswordResetConfirmRequest;
 import com.hireflow.auth.dto.PasswordResetRequest;
@@ -48,5 +51,16 @@ public class AuthController {
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void confirmPasswordReset(@Valid @RequestBody PasswordResetConfirmRequest request) {
         authService.confirmPasswordReset(request);
+    }
+
+    @PostMapping("/email-verification/request")
+    public EmailVerificationResponse requestEmailVerification(@Valid @RequestBody EmailVerificationRequest request) {
+        return authService.requestEmailVerification(request);
+    }
+
+    @PostMapping("/email-verification/confirm")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void confirmEmailVerification(@Valid @RequestBody EmailVerificationConfirmRequest request) {
+        authService.confirmEmailVerification(request);
     }
 }

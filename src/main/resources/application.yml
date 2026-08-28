@@ -43,6 +43,11 @@ hireflow:
     requests-per-minute: ${AUTH_RATE_LIMIT_PER_MINUTE:10}
   password-reset:
     token-ttl-minutes: ${PASSWORD_RESET_TOKEN_TTL_MINUTES:30}
+  email-verification:
+    # Longer-lived than the password-reset token (30 min) - verification links conventionally
+    # stay valid much longer, since there's no urgency comparable to "someone may be resetting
+    # your password right now".
+    token-ttl-hours: ${EMAIL_VERIFICATION_TOKEN_TTL_HOURS:24}
   admin-bootstrap:
     # Opt-in: only creates the first ADMIN account if both are set AND no ADMIN exists yet.
     # See AdminBootstrapRunner / README "Admin user management" for the bootstrap problem this solves.

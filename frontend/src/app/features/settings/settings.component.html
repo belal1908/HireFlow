@@ -26,6 +26,59 @@
           </div>
           <span class="mono role-pill">{{ authService.currentUser()?.role }}</span>
         </div>
+
+        <div class="role-row">
+          <div>
+            <div class="role-row-title">Email verification</div>
+            <div class="role-row-sub">
+              @if (authService.currentUser()?.emailVerified) {
+                You've proven you control this inbox.
+              } @else {
+                Not yet proven you control this inbox.
+              }
+            </div>
+          </div>
+          <span class="mono verification-pill" [class.verified]="authService.currentUser()?.emailVerified">
+            {{ authService.currentUser()?.emailVerified ? 'VERIFIED' : 'NOT VERIFIED' }}
+          </span>
+        </div>
+
+        @if (!authService.currentUser()?.emailVerified) {
+          <div class="verification-action">
+            @if (!verificationToken()) {
+              <button
+                class="btn btn-outline verification-btn"
+                type="button"
+                (click)="sendVerificationToken()"
+                [disabled]="requestingVerification()"
+              >
+                {{ requestingVerification() ? 'Sending…' : 'Send verification token' }}
+              </button>
+            } @else {
+              <div class="dev-callout">
+                <div class="dev-callout-label mono">DEV MODE — NO EMAIL SERVER CONFIGURED</div>
+                <p class="dev-callout-body">
+                  This project has no SMTP infrastructure, so the verification token is shown here directly instead
+                  of being emailed. A real deployment would send this by email and never show it on screen.
+                </p>
+                <div class="dev-token mono">{{ verificationToken() }}</div>
+                <button
+                  class="btn btn-ink verification-btn"
+                  type="button"
+                  (click)="confirmVerification()"
+                  [disabled]="confirmingVerification()"
+                >
+                  {{ confirmingVerification() ? 'Verifying…' : 'Confirm verification' }}
+                </button>
+              </div>
+            }
+            @if (verificationError()) {
+              <p class="form-error" role="alert">{{ verificationError() }}</p>
+            }
+          </div>
+        } @else if (verificationConfirmed()) {
+          <p class="verification-confirmed">Email verified.</p>
+        }
       </div>
     </div>
 

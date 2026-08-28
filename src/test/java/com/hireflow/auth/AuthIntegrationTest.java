@@ -1,9 +1,14 @@
 package com.hireflow.auth;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import com.hireflow.auth.entity.EmailVerificationToken;
 import com.hireflow.auth.entity.PasswordResetToken;
+import com.hireflow.auth.repository.EmailVerificationTokenRepository;
 import com.hireflow.auth.repository.PasswordResetTokenRepository;
 import com.hireflow.support.AbstractIntegrationTest;
+import com.hireflow.user.entity.Role;
+import com.hireflow.user.entity.User;
+import io.jsonwebtoken.Claims;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 
@@ -19,6 +24,9 @@ class AuthIntegrationTest extends AbstractIntegrationTest {
 
     @Autowired
     private PasswordResetTokenRepository passwordResetTokenRepository;
+
+    @Autowired
+    private EmailVerificationTokenRepository emailVerificationTokenRepository;
 
     @Test
     void register_createsCandidateAccount() throws Exception {
@@ -412,6 +420,167 @@ class AuthIntegrationTest extends AbstractIntegrationTest {
                         .anyMatch(t -> t.getUser().getId().equals(userId) && t.isUsed()))
                 .as("a token rejected by validation before the service ever ran must not be marked used")
                 .isFalse();
+    }
+
+    @Test
+    void selfRegisteredAccount_startsUnverified_reflectedInJwtClaim() throws Exception {
+        String email = uniqueEmail("unverified-on-register");
+        registerCandidate(email, "Password123!");
+        String accessToken = login(email, "Password123!").get("accessToken").asText();
+
+        Claims claims = jwtService.parseClaims(accessToken);
+        assertThat(claims.get("emailVerified", Boolean.class)).isFalse();
+    }
+
+    @Test
+    void adminCreatedAccount_startsVerified_reflectedInJwtClaim() throws Exception {
+        User admin = createUser(Role.ADMIN);
+        String email = uniqueEmail("verified-admin-created");
+        String password = "Password123!";
+        mockMvc.perform(post("/api/admin/users")
+                        .header("Authorization", bearerToken(admin))
+                        .contentType("application/json")
+                        .content("""
+                                {"email": "%s", "password": "%s", "role": "RECRUITER"}
+                                """.formatted(email, password)))
+                .andExpect(status().isCreated());
+
+        String accessToken = login(email, password).get("accessToken").asText();
+        Claims claims = jwtService.parseClaims(accessToken);
+        assertThat(claims.get("emailVerified", Boolean.class)).isTrue();
+    }
+
+    @Test
+    void emailVerification_forExistingUnverifiedAccount_returnsAToken() throws Exception {
+        String email = uniqueEmail("verify-exists");
+        registerCandidate(email, "Password123!");
+
+        mockMvc.perform(post("/api/auth/email-verification/request")
+                        .contentType("application/json")
+                        .content("""
+                                {"email": "%s"}
+                                """.formatted(email)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.verificationToken").exists())
+                .andExpect(jsonPath("$.expiresAt").exists());
+    }
+
+    @Test
+    void emailVerification_forUnknownEmail_returns200WithNullToken() throws Exception {
+        mockMvc.perform(post("/api/auth/email-verification/request")
+                        .contentType("application/json")
+                        .content("""
+                                {"email": "%s"}
+                                """.formatted(uniqueEmail("verify-ghost"))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.verificationToken").doesNotExist());
+    }
+
+    @Test
+    void emailVerification_forAlreadyVerifiedAccount_returnsNullToken() throws Exception {
+        String email = uniqueEmail("verify-twice");
+        registerCandidate(email, "Password123!");
+        String token = requestEmailVerification(email);
+        mockMvc.perform(post("/api/auth/email-verification/confirm")
+                        .contentType("application/json")
+                        .content("""
+                                {"token": "%s"}
+                                """.formatted(token)))
+                .andExpect(status().isNoContent());
+
+        mockMvc.perform(post("/api/auth/email-verification/request")
+                        .contentType("application/json")
+                        .content("""
+                                {"email": "%s"}
+                                """.formatted(email)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.verificationToken").doesNotExist());
+    }
+
+    @Test
+    void emailVerification_requestWithInvalidEmail_returns400() throws Exception {
+        mockMvc.perform(post("/api/auth/email-verification/request")
+                        .contentType("application/json")
+                        .content("""
+                                {"email": "not-an-email"}
+                                """))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void emailVerification_confirmWithValidToken_marksVerified_reflectedInNextLogin() throws Exception {
+        String email = uniqueEmail("verify-confirm");
+        registerCandidate(email, "Password123!");
+        String token = requestEmailVerification(email);
+
+        mockMvc.perform(post("/api/auth/email-verification/confirm")
+                        .contentType("application/json")
+                        .content("""
+                                {"token": "%s"}
+                                """.formatted(token)))
+                .andExpect(status().isNoContent());
+
+        String accessToken = login(email, "Password123!").get("accessToken").asText();
+        Claims claims = jwtService.parseClaims(accessToken);
+        assertThat(claims.get("emailVerified", Boolean.class)).isTrue();
+    }
+
+    @Test
+    void emailVerification_confirmWithGarbageToken_returns400() throws Exception {
+        mockMvc.perform(post("/api/auth/email-verification/confirm")
+                        .contentType("application/json")
+                        .content("""
+                                {"token": "not-a-real-token"}
+                                """))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void emailVerification_confirmReusingAnAlreadyUsedToken_returns400() throws Exception {
+        String email = uniqueEmail("verify-reuse");
+        registerCandidate(email, "Password123!");
+        String token = requestEmailVerification(email);
+        String confirmBody = """
+                {"token": "%s"}
+                """.formatted(token);
+
+        mockMvc.perform(post("/api/auth/email-verification/confirm").contentType("application/json").content(confirmBody))
+                .andExpect(status().isNoContent());
+
+        mockMvc.perform(post("/api/auth/email-verification/confirm").contentType("application/json").content(confirmBody))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void emailVerification_confirmWithExpiredToken_returns400() throws Exception {
+        String email = uniqueEmail("verify-expired");
+        registerCandidate(email, "Password123!");
+        String token = requestEmailVerification(email);
+
+        Long userId = userRepository.findByEmail(email).orElseThrow().getId();
+        EmailVerificationToken stored = emailVerificationTokenRepository.findAll().stream()
+                .filter(t -> t.getUser().getId().equals(userId))
+                .findFirst().orElseThrow();
+        stored.setExpiresAt(Instant.now().minusSeconds(60));
+        emailVerificationTokenRepository.save(stored);
+
+        mockMvc.perform(post("/api/auth/email-verification/confirm")
+                        .contentType("application/json")
+                        .content("""
+                                {"token": "%s"}
+                                """.formatted(token)))
+                .andExpect(status().isBadRequest());
+    }
+
+    private String requestEmailVerification(String email) throws Exception {
+        String body = """
+                {"email": "%s"}
+                """.formatted(email);
+        String response = mockMvc.perform(post("/api/auth/email-verification/request")
+                        .contentType("application/json").content(body))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+        return objectMapper.readTree(response).get("verificationToken").asText();
     }
 
     private String requestPasswordReset(String email) throws Exception {

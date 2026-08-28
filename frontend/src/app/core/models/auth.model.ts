@@ -38,3 +38,21 @@ export interface PasswordResetConfirmRequest {
   token: string;
   newPassword: string;
 }
+
+export interface EmailVerificationRequest {
+  email: string;
+}
+
+/**
+ * `verificationToken`/`expiresAt` are both null when the email doesn't match an account OR is
+ * already verified — same dev-mode stand-in tradeoff as `PasswordResetResponse`. See the README's
+ * "Password reset" section (the email-verification endpoints mirror it exactly).
+ */
+export interface EmailVerificationResponse {
+  verificationToken: string | null;
+  expiresAt: string | null;
+}
+
+export interface EmailVerificationConfirmRequest {
+  token: string;
+}
