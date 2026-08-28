@@ -15,11 +15,11 @@ written to an append-only audit log. Built to exercise real Spring Security (JWT
 `@PreAuthorize`, ownership checks, refresh-token rotation) and a genuinely tested state machine —
 not another CRUD demo.
 
-This covers the **Week 1 + Week 2 + Week 3 milestones**: a working Spring Boot backend, an Angular
-frontend that consumes it, a Playwright e2e suite that exercises all three roles (positive and
-negative cases) against the real running stack, a full-stack Docker Compose setup, a GitHub Actions
-CI workflow, and a real free-tier live deploy. See "End-to-end tests", "Full stack via Docker
-Compose", "Live deploy", and "Continuous integration" below for what's actually been verified.
+It's all here: a working Spring Boot backend, an Angular frontend that consumes it, a Playwright
+e2e suite that exercises all three roles (positive and negative cases) against the real running
+stack, a full-stack Docker Compose setup, a GitHub Actions CI workflow, and a real free-tier live
+deploy. See "End-to-end tests", "Full stack via Docker Compose", "Live deploy", and "Continuous
+integration" below for what's actually been verified.
 
 ## Tech stack
 
@@ -78,8 +78,8 @@ and trivially unit-testable.
 
 It's the most heavily tested piece of the project:
 - `TransitionValidatorExhaustiveTest` checks **all 147** combinations of (7 statuses × 7 statuses ×
-  3 roles) against a hand-written set of the 12 legal transitions taken directly from the PRD —
-  not derived from the implementation, so it can't become a tautology.
+  3 roles) against a hand-written set of the 12 legal transitions — written independently of the
+  implementation, not derived from it, so the test can't become a tautology.
 - `TransitionValidatorPositiveTest` — one explicit test per legal transition.
 - `TransitionValidatorNegativeTest` — wrong role, wrong starting state, skipped steps, backward
   moves, terminal states, self-transitions, and null inputs.
@@ -121,20 +121,19 @@ passing tests: `candidateCannotTransitionAnotherCandidatesApplication_returns403
 `TransitionValidator` whether that specific (current status, target status, role) triple is legal.
 A denial — whether the *cause* is a wrong role, a skipped step, a terminal state, or anything else
 — is surfaced as **400 Bad Request** with the validator's own reason string in the body, since the
-validator is standing in for `@PreAuthorize` here (per the PRD: "role-gated transition via
-TransitionValidator"). Ownership violations (acting on *someone else's* application) are a
+validator is standing in for `@PreAuthorize` here — it's the single source of truth for "is this
+role-gated transition allowed." Ownership violations (acting on *someone else's* application) are a
 separate concern from the state machine and are enforced first, as **403 Forbidden**. Every other
 role-gated endpoint (postings, apply, list-all, mine) uses `@PreAuthorize(hasRole(...))` directly
 and returns a plain 403 on the wrong role, before the request body is even looked at.
 
-### Admin user management (PRD stretch goal)
+### Admin user management
 
-Section 7 of the PRD lists one explicit stretch goal beyond core v1 scope: "Manage
-recruiter/admin user accounts." `POST /api/admin/users` and `GET /api/admin/users`
-(`com.hireflow.admin` — `AdminUserController`/`AdminUserService`) implement it, closing the gap
-this README used to document (the first RECRUITER/ADMIN accounts no longer need a hand-written
-`UPDATE users SET role = ...` — an existing ADMIN can create them through the API or the
-`/admin/users` screen instead). Scope is deliberately narrow, matching the gap it closes:
+`POST /api/admin/users` and `GET /api/admin/users` (`com.hireflow.admin` —
+`AdminUserController`/`AdminUserService`) close a real bootstrap gap: the first RECRUITER/ADMIN
+accounts no longer need a hand-written `UPDATE users SET role = ...` — an existing ADMIN can create
+them through the API or the `/admin/users` screen instead. Scope is deliberately narrow, matching
+the gap it closes:
 
 - **Create only the two roles self-registration can't produce.** `role: CANDIDATE` is rejected
   with 400 — `POST /api/auth/register` already owns that path, and creating a second way to make
@@ -143,10 +142,10 @@ this README used to document (the first RECRUITER/ADMIN accounts no longer need 
   `@Size(min = 8, max = 100)`, BCrypt hash, 409 on a duplicate email) but does **not** call into
   `AuthService` directly, since that method's whole contract is "always forces CANDIDATE" — the
   opposite of what this endpoint needs.
-- **Create + list only.** No role-change, deactivate, or delete endpoints. The PRD's own
-  constraint ("A user has exactly one role, assigned at creation. No self-service role changes.")
-  is about a user changing *their own* role; it doesn't ask for an admin to be able to change
-  *anyone's* role after the fact, so that was left out rather than guessed at.
+- **Create + list only.** No role-change, deactivate, or delete endpoints. A user has exactly one
+  role, assigned at creation, with no self-service role changes — that's about a user changing
+  *their own* role, and doesn't imply an admin should be able to change *anyone's* role after the
+  fact, so that was left out rather than guessed at.
 - `GET /api/admin/users` supports an optional `?role=` filter (`UserRepository#findByRole`) so an
   admin can check who already has RECRUITER/ADMIN access before creating a duplicate account.
 
@@ -182,9 +181,9 @@ login only"), with one deliberate simplification stated plainly rather than hidd
 time-limited token (`hireflow.password-reset.token-ttl-minutes`, default 30, env
 `PASSWORD_RESET_TOKEN_TTL_MINUTES`) and — **this is the simplification** — returns it directly in
 the response body (`resetToken`, `expiresAt`) instead of emailing it. There is no SMTP
-infrastructure anywhere in this project (no `spring-boot-starter-mail`, no mail config), and adding
-one was out of scope for this task; this is the "dev-style" tradeoff, chosen explicitly over adding
-that infrastructure. **This makes the endpoint categorically unsafe for a real deployment**: proving
+infrastructure anywhere in this project (no `spring-boot-starter-mail`, no mail config), and this
+is the "dev-style" tradeoff, chosen explicitly over adding that infrastructure. **This makes the
+endpoint categorically unsafe for a real deployment**: proving
 you control the target inbox is the entire security property a password reset flow exists to
 provide, and handing the token straight back in the response — to whoever called the endpoint, not
 whoever owns the email — provides none of it. A real deployment must replace this with an actual
@@ -370,15 +369,15 @@ and a second copy in the log stream would just be redundant.
 
 ## Frontend
 
-`frontend/` is a standalone-components Angular app. Its original brief was to demonstrate three
-specific Angular patterns the PRD calls out, not to be a design showcase — that's still true of the
-patterns themselves, which the ApplyTrack redesign below left untouched:
+`frontend/` is a standalone-components Angular app. The original goal was to demonstrate three
+specific Angular patterns well, not to be a design showcase — that's still true of the patterns
+themselves, which the ApplyTrack redesign below left untouched:
 
 - **`AuthService`** (`core/services/auth.service.ts`) — holds the access + refresh tokens in
   memory only (never `localStorage`), so an XSS payload can't read a token that was never written
   to storage. The trade-off, stated plainly: a full page reload loses the session. A production
   system would move the refresh token into a backend-set `httpOnly` cookie instead; that's a
-  backend change out of scope for Week 2. `refreshAccessToken()` shares one in-flight
+  backend change that wasn't worth making for this project's scope. `refreshAccessToken()` shares one in-flight
   `/api/auth/refresh` call (`shareReplay(1)`) across any number of concurrent 401s, since the
   backend burns each refresh token on use — without sharing, N simultaneous 401s would rotate the
   token N times and invalidate all but the last.
@@ -681,8 +680,8 @@ real Hibernate/Postgres SQL all run in every test.
 
 Every endpoint has both a positive test (allowed case succeeds) and negative tests (wrong role →
 403, invalid transition → 400, missing/invalid auth → 401, not found → 404, duplicate/conflicting
-state → 409), including the explicit "candidate cannot touch another candidate's application"
-proof required by the spec.
+state → 409), including an explicit proof that a candidate cannot touch another candidate's
+application.
 
 Beyond `mvn test`, the full stack was also manually smoke-tested end-to-end against a real
 `docker compose`-style Postgres and `mvn spring-boot:run`: register → login → refresh-token
@@ -707,7 +706,7 @@ stack you already have running — either local dev (`mvn spring-boot:run` + `ng
 two ports — plus, for the negative authorization proofs, it calls the backend directly with
 Playwright's `request` context (no browser involved at all).
 
-**What it covers**, per the PRD's role/state-machine scope (`e2e/tests/`) — rewritten for the
+**What it covers**, matching the role/state-machine scope (`e2e/tests/`) — rewritten for the
 ApplyTrack redesign's unified routes and selectors (`utils/ui.ts`'s `loginViaUi` now clicks
 "Sign in", not "Log in"; rows are targeted by `#app-row-{id}`/`#posting-card-{id}` instead of text
 matches on a `<tr>`), while keeping the same scenarios the pre-redesign suite covered:
@@ -766,10 +765,9 @@ npx playwright test
 after the ApplyTrack redesign, all **12/12 tests passed** (11 scenarios plus the new real-403-demo
 test added for the redesigned Postings page) on a clean single run.
 
-**The specific proof this suite is real, not decorative** (per the PRD's success criteria) was
-performed once, against the pre-redesign version of this suite, and — per this task's own
-instructions — was not repeated here, since `api-security.negative.spec.ts` (the spec that proof
-exercises) is byte-for-byte unchanged by the redesign: with the suite green,
+**The proof that this suite is real, not decorative**, was performed once, against the
+pre-redesign version of this suite, and wasn't repeated here since `api-security.negative.spec.ts`
+(the spec that proof exercises) is byte-for-byte unchanged by the redesign: with the suite green,
 `@PreAuthorize("hasRole('ADMIN')")` was commented out on `PostingController#update`
 (`PATCH /api/postings/{id}`), the backend was restarted, and the suite was re-run. Result: **1 test
 failed** — `api-security.negative.spec.ts › a non-ADMIN cannot PATCH a posting directly (403)` —
@@ -803,8 +801,8 @@ Two new Dockerfiles, both multi-stage:
   `nginx:1.27-alpine` serves the static output via `frontend/nginx.conf` (static files +
   `try_files ... /index.html` SPA fallback — nothing else).
 
-**The env var wiring that's easy to get wrong**, spelled out because the PRD specifically called
-it out: the `backend` container reaches Postgres over the *internal Docker network*, so its
+**The env var wiring that's easy to get wrong**, spelled out because it's a genuinely easy mistake
+to make: the `backend` container reaches Postgres over the *internal Docker network*, so its
 `DB_URL` is `jdbc:postgresql://postgres:5432/hireflow` (the Compose **service name**, container
 port), never `localhost` and never the host-published `DB_HOST_PORT`. The `frontend` container is
 different: nginx just serves static files, but the *browser* is what actually calls the API —
@@ -815,9 +813,9 @@ time) is `http://localhost:8080` — the **host-published** port the `backend` c
 (`BACKEND_HOST_PORT` defaulting to 8080, `FRONTEND_HOST_PORT` defaulting to 4200) are configurable
 in `.env`, same pattern as the existing `DB_HOST_PORT`.
 
-**Verified in this environment** (pre-dating the ApplyTrack redesign — not re-run in this session,
-since the task that produced the redesign was explicitly frontend-only and native-Postgres/`ng
-serve`/`mvn spring-boot:run` based, with Docker/Colima out of scope): `docker compose --profile
+**Verified in this environment** (pre-dating the ApplyTrack redesign — not re-run since, because
+the redesign work was frontend-only and used native-Postgres/`ng serve`/`mvn spring-boot:run`
+rather than Docker/Colima): `docker compose --profile
 full up -d --build` was run against the already-running `hireflow-postgres` container (Compose
 recognized it as satisfying the `postgres` service and left it alone rather than recreating it).
 Both new images built successfully and both containers reached a running state. With the local
@@ -918,9 +916,9 @@ just this local environment. The badge at the top of this README reflects the ac
 of `main`. `mvn -B verify` (326/326), `ng test` (14/14), `ng build`, and `npx playwright test`
 (12/12) all pass there the same as they do locally.
 
-## Known gaps / non-goals
+## Known gaps
 
-Explicitly out of scope for now:
+Deliberately left out for now:
 
 - **Password reset and email verification both exist but aren't production-safe** (see those
   sections above): there's no SMTP infrastructure in this project, so both tokens are returned
