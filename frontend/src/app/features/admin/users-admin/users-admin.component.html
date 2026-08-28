@@ -1,48 +1,54 @@
-<div class="page">
-  <h1>Manage Users</h1>
-  <p class="hint">Create RECRUITER/ADMIN accounts. Candidate accounts can only be created via self-registration.</p>
+<div class="page-container">
+  <div class="breadcrumb">WORKSPACE / SETTINGS / USER MANAGEMENT</div>
+  <div class="header-block">
+    <a class="back-link" routerLink="/settings">‹ Back to Settings</a>
+    <h1 class="page-title">Manage users</h1>
+    <p class="page-sub">Create RECRUITER/ADMIN accounts. Candidate accounts can only be created via self-registration.</p>
+  </div>
 
-  <form class="create-card" [formGroup]="createForm" (ngSubmit)="createUser()">
-    <h2>New recruiter/admin account</h2>
-    <mat-form-field appearance="outline">
-      <mat-label>Email</mat-label>
-      <input matInput id="new-email" type="email" formControlName="email" autocomplete="off" />
-      @if (createForm.controls.email.invalid && createForm.controls.email.touched) {
-        <mat-error>Enter a valid email address.</mat-error>
+  <div class="card create-card">
+    <div class="panel-title">New recruiter/admin account</div>
+    <form class="create-form" [formGroup]="createForm" (ngSubmit)="createUser()">
+      <mat-form-field appearance="outline">
+        <mat-label>Email</mat-label>
+        <input matInput id="new-email" type="email" formControlName="email" autocomplete="off" />
+        @if (createForm.controls.email.invalid && createForm.controls.email.touched) {
+          <mat-error>Enter a valid email address.</mat-error>
+        }
+      </mat-form-field>
+
+      <mat-form-field appearance="outline">
+        <mat-label>Password</mat-label>
+        <input matInput id="new-password" type="password" formControlName="password" autocomplete="new-password" />
+        @if (createForm.controls.password.invalid && createForm.controls.password.touched) {
+          <mat-error>Password must be at least 8 characters.</mat-error>
+        }
+      </mat-form-field>
+
+      <mat-form-field appearance="outline">
+        <mat-label>Role</mat-label>
+        <mat-select id="new-role" formControlName="role">
+          <mat-option value="RECRUITER">RECRUITER</mat-option>
+          <mat-option value="ADMIN">ADMIN</mat-option>
+        </mat-select>
+      </mat-form-field>
+
+      @if (createError()) {
+        <p class="form-error" role="alert">{{ createError() }}</p>
       }
-    </mat-form-field>
 
-    <mat-form-field appearance="outline">
-      <mat-label>Password</mat-label>
-      <input matInput id="new-password" type="password" formControlName="password" autocomplete="new-password" />
-      @if (createForm.controls.password.invalid && createForm.controls.password.touched) {
-        <mat-error>Password must be at least 8 characters.</mat-error>
-      }
-    </mat-form-field>
-
-    <mat-form-field appearance="outline">
-      <mat-label>Role</mat-label>
-      <mat-select id="new-role" formControlName="role">
-        <mat-option value="RECRUITER">RECRUITER</mat-option>
-        <mat-option value="ADMIN">ADMIN</mat-option>
-      </mat-select>
-    </mat-form-field>
-
-    @if (createError()) {
-      <p class="form-error" role="alert">{{ createError() }}</p>
-    }
-
-    <button mat-flat-button color="primary" type="submit" [disabled]="creating()">{{ creating() ? 'Creating…' : 'Create account' }}</button>
-  </form>
+      <button class="btn btn-ink" type="submit" [disabled]="creating()">{{ creating() ? 'Creating…' : 'Create account' }}</button>
+    </form>
+  </div>
 
   @if (errorMessage()) {
-    <p class="error" role="alert">{{ errorMessage() }}</p>
+    <p class="error-banner" role="alert">{{ errorMessage() }}</p>
   }
 
   @if (loading()) {
-    <p>Loading…</p>
+    <p class="loading-text">Loading…</p>
   } @else if (users().length === 0) {
-    <p class="empty">No users yet.</p>
+    <p class="empty-text">No users yet.</p>
   } @else {
     <div class="table-scroll">
       <table mat-table [dataSource]="users()" class="users-table">

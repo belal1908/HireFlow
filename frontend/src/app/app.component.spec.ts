@@ -24,10 +24,10 @@ describe('AppComponent', () => {
     expect(app.title).toEqual('HireFlow');
   });
 
-  it('should render the nav bar brand', () => {
+  it('should render a router outlet', () => {
     const fixture = TestBed.createComponent(AppComponent);
     fixture.detectChanges();
     const compiled = fixture.nativeElement as HTMLElement;
-    expect(compiled.querySelector('.brand')?.textContent).toContain('HireFlow');
+    expect(compiled.querySelector('router-outlet')).toBeTruthy();
   });
 });

@@ -1,87 +1,83 @@
-.page {
-  max-width: 1000px;
-  margin: 0 auto;
-  padding: 1.5rem;
+.header-block {
+  margin: 14px 0 26px;
 }
 
-h1 {
-  font-size: 1.3rem;
-  margin-bottom: 0.25rem;
+.back-link {
+  display: inline-block;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink-60);
+  margin-bottom: 12px;
+  text-decoration: none;
 }
 
-.hint {
-  color: #666;
-  font-size: 0.85rem;
-  margin: 0 0 1rem;
+.back-link:hover {
+  color: var(--ink);
 }
 
 .create-card {
+  max-width: 480px;
+  margin-bottom: 26px;
+}
+
+.create-form {
+  margin-top: 16px;
   display: flex;
   flex-direction: column;
-  gap: 0.1rem;
-  border: 1px solid #e0e0e0;
-  border-radius: 8px;
-  padding: 1rem 1.25rem;
-  margin-bottom: 1.5rem;
-  max-width: 480px;
+  gap: 4px;
 }
 
-.create-card h2 {
-  font-size: 1rem;
-  margin: 0 0 0.4rem;
-}
-
-.create-card mat-form-field {
-  width: 100%;
-}
-
-.create-card button[mat-flat-button] {
-  margin-top: 0.5rem;
+.create-form button[type='submit'] {
+  margin-top: 8px;
   align-self: flex-start;
 }
 
-.create-card button[mat-flat-button]:disabled {
-  opacity: 0.6;
-}
-
 .form-error {
-  color: #b3261e;
-  font-size: 0.78rem;
+  color: var(--red-strong);
+  font-size: 12.5px;
   margin: 0;
 }
 
-.error {
-  color: #b3261e;
-  background: #fdecea;
-  border: 1px solid #f4c7c3;
-  padding: 0.5rem 0.75rem;
-  border-radius: 4px;
-  font-size: 0.85rem;
-  margin-bottom: 0.75rem;
+.error-banner {
+  color: var(--red-strong);
+  background: rgba(220, 38, 38, 0.08);
+  border: 1px solid rgba(220, 38, 38, 0.22);
+  border-radius: var(--radius-btn);
+  padding: 10px 14px;
+  font-size: 13.5px;
+  margin-bottom: 16px;
 }
 
-.empty {
-  color: #666;
+.loading-text,
+.empty-text {
+  color: var(--ink-55);
+  font-size: 14px;
 }
 
 .users-table {
   width: 100%;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
 }
 
-/* Role badge is a distinct data domain (USER role) from the shared ApplicationStatus
- * `.status-badge` in src/styles.css, so it stays its own small local class here rather than
- * being folded into that shared, differently-keyed component. */
 .role-badge {
-  display: inline-block;
-  padding: 0.2rem 0.55rem;
-  border-radius: 999px;
-  font-size: 0.72rem;
+  display: inline-flex;
+  align-items: center;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
   font-weight: 600;
-  background: #eef1ff;
-  color: #2454ff;
+  letter-spacing: 0.09em;
+  padding: 5px 10px;
+  border-radius: 999px;
+  text-transform: uppercase;
+  color: var(--role-recruiter);
+  background: rgba(125, 211, 252, 0.18);
+  border: 1px solid rgba(125, 211, 252, 0.4);
 }
 
 .role-badge[data-role='ADMIN'] {
-  background: #fdecea;
-  color: #b3261e;
+  color: #7c3aed;
+  background: rgba(124, 58, 237, 0.12);
+  border-color: rgba(124, 58, 237, 0.3);
 }

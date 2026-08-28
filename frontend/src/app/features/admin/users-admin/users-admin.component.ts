@@ -1,5 +1,6 @@
 import { Component, OnInit, inject, signal } from '@angular/core';
 import { DatePipe } from '@angular/common';
+import { RouterLink } from '@angular/router';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
@@ -23,6 +24,7 @@ import { PagerComponent } from '../../../shared/pager/pager.component';
   imports: [
     ReactiveFormsModule,
     DatePipe,
+    RouterLink,
     PagerComponent,
     MatFormFieldModule,
     MatInputModule,

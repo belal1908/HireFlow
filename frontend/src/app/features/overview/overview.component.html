@@ -1,0 +1,112 @@
+<div class="page-container">
+  <div class="breadcrumb">{{ crumb() }}</div>
+
+  <div class="hero-row">
+    <div class="hero-copy">
+      <h1 class="page-title">{{ heroTitle() }}</h1>
+      <p class="page-sub">{{ heroSub() }}</p>
+    </div>
+    <button class="btn btn-ink" type="button" (click)="goApplications()">
+      <span>{{ heroCta() }}</span><span class="arrow-up">↗</span>
+    </button>
+  </div>
+
+  @if (errorMessage()) {
+    <p class="error-banner" role="alert">{{ errorMessage() }}</p>
+  }
+
+  @if (loading()) {
+    <p class="loading-text">Loading…</p>
+  } @else {
+    <div class="stat-grid">
+      @for (stat of statCards(); track stat.label) {
+        <div class="card stat-card">
+          <div class="stat-head">
+            <div class="kicker">{{ stat.label }}</div>
+            <div class="stat-tick"></div>
+          </div>
+          <div class="stat-value">{{ stat.value }}</div>
+          <div class="stat-hint">{{ stat.hint }}</div>
+        </div>
+      }
+    </div>
+
+    <div class="mid-grid">
+      <div class="card pipeline-card">
+        <div class="pipeline-head">
+          <div>
+            <div class="kicker">Pipeline shape</div>
+            <h2 class="card-title">Where things stand</h2>
+          </div>
+          <div class="active-pill">{{ stats().active }} active</div>
+        </div>
+        <div class="pipeline-rows">
+          @for (row of pipeline(); track row.status) {
+            <div class="pipeline-row">
+              <div class="pipeline-row-head">
+                <span class="status-dot" [attr.data-status]="row.status"></span>
+                <span class="pipeline-label">{{ row.label }}</span>
+                <span class="spacer"></span>
+                <span class="mono pipeline-count">{{ row.pad }}</span>
+              </div>
+              <div class="pipeline-track">
+                <div class="pipeline-fill" [attr.data-status]="row.status" [style.width.%]="row.percent"></div>
+              </div>
+            </div>
+          }
+        </div>
+        <div class="terminal-summary">
+          <span class="terminal-label">Terminal outcomes</span>
+          <span class="mono terminal-value">
+            {{ terminalCounts().accepted }} accepted · {{ terminalCounts().rejected }} rejected · {{ terminalCounts().withdrawn }} withdrawn
+          </span>
+        </div>
+      </div>
+
+      <div class="card-dark nudge-card">
+        <div class="kicker nudge-kicker">{{ nudge().kicker }}</div>
+        <h2 class="nudge-title">{{ nudge().title }}</h2>
+        <p class="nudge-body">{{ nudge().body }}</p>
+        <div class="nudge-spacer"></div>
+        <button class="btn btn-dark nudge-btn" type="button" (click)="navigate(nudge().route)">
+          <span>{{ nudge().cta }}</span><span class="chevron">›</span>
+        </button>
+      </div>
+    </div>
+
+    <div class="card activity-card">
+      <div class="activity-head">
+        <div>
+          <div class="kicker">Activity log · append-only</div>
+          <h2 class="card-title">Recent movement</h2>
+        </div>
+        <button class="btn-text" type="button" (click)="goApplications()">Full audit trail ↗</button>
+      </div>
+      @if (activity().length === 0) {
+        <p class="empty-text">Nothing recorded yet.</p>
+      } @else {
+        <div class="activity-list">
+          @for (row of activity(); track row.date + row.subject + row.to) {
+            <div class="activity-row">
+              <div class="activity-avatar"><span class="activity-avatar-dot"></span></div>
+              <div class="activity-body">
+                <div class="activity-line">
+                  <strong>{{ row.actor }}</strong>
+                  <span class="muted">moved</span>
+                  <span class="muted">{{ row.subject }}</span>
+                  @if (row.from) {
+                    <app-status-badge [status]="row.from" />
+                    <span class="muted">→</span>
+                  }
+                  <app-status-badge [status]="row.to" />
+                </div>
+                <div class="activity-note">{{ row.note }}</div>
+              </div>
+              <div class="mono activity-date">{{ row.date }}</div>
+            </div>
+          }
+        </div>
+      }
+    </div>
+  }
+</div>

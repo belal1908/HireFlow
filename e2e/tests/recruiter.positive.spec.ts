@@ -4,10 +4,17 @@ import { apply, createPosting } from '../utils/api';
 import { loginViaUi } from '../utils/ui';
 
 /**
- * PRD positive flow: log in -> see all applications -> advance one step (APPLIED -> SCREENING)
- * -> reject a DIFFERENT application -> view its audit trail. The two candidate applications are
- * seeded via direct API calls (this test is about the recruiter's UI, not the candidate's), then
- * every recruiter action below is driven through the real UI.
+ * PRD positive flow, rewritten for the redesign: log in -> land on Overview -> Applications
+ * (unified route, RECRUITER sees every application) -> advance one step (APPLIED -> SCREENING)
+ * through the new transition confirm-sheet -> reject a DIFFERENT application the same way ->
+ * view its audit trail (now always visible in the detail panel for whichever row is selected,
+ * rather than a per-row toggle). The two candidate applications are seeded via direct API calls
+ * (this test is about the recruiter's UI, not the candidate's); every recruiter action below is
+ * driven through the real UI.
+ *
+ * A second test in this file exercises the "real 403 demo" on `/postings` — RECRUITER is a
+ * non-admin, so it gets the same dashed "Call POST /api/postings as RECRUITER" button and
+ * genuine-403 panel as CANDIDATE (per the design's `cannotManagePostings = !isAdmin`).
  */
 test.describe('Recruiter journey (positive)', () => {
   test('advance one application, reject a different one, and view its audit trail', async ({ page, request }) => {
@@ -22,29 +29,56 @@ test.describe('Recruiter journey (positive)', () => {
 
     const recruiter = await seedPrivilegedUser(request, 'RECRUITER');
     await loginViaUi(page, recruiter.email, recruiter.password);
-    await expect(page).toHaveURL(/\/recruiter\/applications$/);
+    await page.getByRole('link', { name: 'Applications', exact: true }).click();
 
     const rowA = page.locator(`#app-row-${appA.id}`);
     const rowB = page.locator(`#app-row-${appB.id}`);
     await expect(rowA).toBeVisible();
     await expect(rowB).toBeVisible();
 
-    // Advance application A one step: APPLIED -> SCREENING.
-    await rowA.getByRole('button', { name: /Advance/ }).click();
+    const detailPanel = page.locator('.detail-panel');
+    const modal = page.locator('.modal-overlay');
+
+    // Advance application A one step: APPLIED -> SCREENING, via the confirm sheet.
+    await rowA.click();
+    await detailPanel.getByRole('button', { name: /Advance to screening/i }).click();
+    await expect(modal).toBeVisible();
+    await modal.getByRole('button', { name: 'Confirm transition', exact: true }).click();
+    await expect(modal).toBeHidden();
     await expect(rowA.locator('.status-badge')).toHaveText('SCREENING');
 
     // Reject a DIFFERENT application (B) — A must stay untouched.
-    await rowB.getByRole('button', { name: 'Reject' }).click();
+    await rowB.click();
+    await detailPanel.getByRole('button', { name: 'Reject', exact: true }).click();
+    await expect(modal).toBeVisible();
+    await modal.getByRole('button', { name: 'Reject application', exact: true }).click();
+    await expect(modal).toBeHidden();
     await expect(rowB.locator('.status-badge')).toHaveText('REJECTED');
     await expect(rowA.locator('.status-badge')).toHaveText('SCREENING');
 
-    // View B's audit trail: the creation event (APPLIED) and the rejection event (-> REJECTED).
-    await rowB.getByRole('button', { name: 'View events' }).click();
-    const eventsList = page.locator(`#app-row-${appB.id} + tr.events-row .events-list`);
-    await expect(eventsList).toBeVisible();
-    const items = eventsList.locator('li');
-    await expect(items).toHaveCount(2);
-    await expect(items.nth(0)).toContainText('APPLIED');
-    await expect(items.nth(1)).toContainText('REJECTED');
+    // B's audit trail is already showing in the detail panel (it's the selected row): the
+    // creation event (APPLIED) and the rejection event (-> REJECTED).
+    const trail = page.locator(`#events-${appB.id}`);
+    await expect(trail).toBeVisible();
+    const rows = trail.locator('.timeline-row');
+    await expect(rows).toHaveCount(2);
+    await expect(rows.nth(0)).toContainText('APPLIED');
+    await expect(rows.nth(1)).toContainText('REJECTED');
+  });
+
+  test('the 403 demo on Job postings shows the real backend response for a non-admin', async ({ page, request }) => {
+    const recruiter = await seedPrivilegedUser(request, 'RECRUITER');
+    await loginViaUi(page, recruiter.email, recruiter.password);
+    await page.getByRole('link', { name: 'Job postings', exact: true }).click();
+
+    await page.getByRole('button', { name: /Call POST \/api\/postings as RECRUITER/i }).click();
+
+    const panel = page.locator('.forbidden-panel');
+    await expect(panel).toBeVisible();
+    await expect(panel).toContainText('403');
+    await expect(panel).toContainText('Forbidden — and not because the button was hidden.');
+
+    await panel.getByRole('button', { name: 'Dismiss' }).click();
+    await expect(panel).toBeHidden();
   });
 });

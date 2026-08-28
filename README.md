@@ -29,12 +29,16 @@ GitHub Actions CI workflow. See "End-to-end tests", "Full stack via Docker Compo
 
 **Frontend**
 - Angular 18+, standalone components throughout (no NgModules)
-- Angular Material (M3 "Azure/Blue" prebuilt theme) for the UI — forms, buttons, the postings/
-  applications tables (native `<table mat-table>`, not the flex-based CDK table, so the audit-trail
-  expandable row and `colspan` still work), posting/kanban cards, the toolbar, and pagination
+- A custom design system ("ApplyTrack" — warm cream/ink-navy/amber palette, Plus Jakarta Sans +
+  IBM Plex Mono, CSS custom properties as the single source of truth) — **not** Angular Material's
+  default M3 theming. Angular Material is still used underneath real form controls
+  (`MatFormField`/`MatInput`/`MatSelect`) and `MatPaginator`, restyled via global overrides; the
+  applications list, postings grid, sidebar/header shell, stepper, state-machine graph, and modals
+  are plain custom components. See "Frontend" below for the full account of this redesign.
 - Functional route guards (`CanActivateFn`) and a functional `HttpInterceptorFn` for auth
 - RxJS for the token-refresh coordination; no state-management library — not needed at this scope
-- anime.js v4 for motion that tracks the pipeline metaphor, centralised in one module (see below)
+- anime.js v4, retained in the codebase (`shared/animation/motion.ts`) but not used by the
+  redesigned pages — the current design calls for near-zero motion (see "Motion" below)
 - Karma/Jasmine for unit tests (the scaffolded default)
 
 ## Project layout
@@ -177,8 +181,9 @@ startup, and when `/app` was left root-owned the container exited before Tomcat 
 
 ## Frontend
 
-`frontend/` is a standalone-components Angular app. It exists to demonstrate three specific
-Angular patterns the PRD calls out, not to be a design showcase:
+`frontend/` is a standalone-components Angular app. Its original brief was to demonstrate three
+specific Angular patterns the PRD calls out, not to be a design showcase — that's still true of the
+patterns themselves, which the ApplyTrack redesign below left untouched:
 
 - **`AuthService`** (`core/services/auth.service.ts`) — holds the access + refresh tokens in
   memory only (never `localStorage`), so an XSS payload can't read a token that was never written
@@ -198,70 +203,98 @@ Angular patterns the PRD calls out, not to be a design showcase:
   activates the component. Both branches are unit-tested (`role.guard.spec.ts`,
   `auth.guard.spec.ts`).
 
-**UI: Angular Material.** The original project plan specified Angular Material; it was added in a
-later pass (`ng add @angular/material`, M3 "Azure/Blue" prebuilt theme, applied globally via
-`angular.json` — no separate hand-rolled color overrides on top of it). Forms use
-`MatFormField`/`MatInput`/`MatSelect`; actions use `mat-button`/`mat-raised-button`/
-`mat-icon-button` variants; the postings and applications tables use the native `<table mat-table>`
-directive form specifically (not the CDK's flex-based table) so the recruiter dashboard's
-expandable audit-trail row can still use a real `colspan` on a real `<tr>`; posting/kanban cards use
-`MatCard`; the nav bar uses `MatToolbar`; pagination uses `MatPaginator`. Two things were
-deliberately left untouched: `StatusBadgeComponent` (its DRY, `data-status`-keyed color treatment
-in `styles.css` predates Material and doesn't need it) and the kanban board's column/scroll-snap
-layout (custom flex CSS suits it better than forcing it into a Material layout component).
+### Design system (redesign)
 
-Feature areas, one route tree per role:
-- `features/auth` — login, register (registration always creates a `CANDIDATE`; the form says so)
-- `features/candidate` — browse open postings and apply; "My Applications" with Withdraw/Accept
-  actions that only appear when legal for the current status
-- `features/recruiter` — all applications, filterable by posting/status, with Advance/Reject
-  actions and a per-application audit-trail view (`GET /api/applications/{id}/events`)
-- `features/admin` — create/edit/close postings, reuses the recruiter's all-applications view;
-  `users-admin` creates RECRUITER/ADMIN accounts (role selector deliberately excludes `CANDIDATE`)
-  and lists existing users — the frontend half of the PRD's Section 7 stretch goal, backed by
-  `core/services/user.service.ts` and `core/models/user.model.ts` (mirroring `PostingService`/
-  `posting.model.ts`), routed at `/admin/users` behind `roleGuard('ADMIN')`
+The frontend was rebuilt to match a high-fidelity design commissioned under the working name
+"ApplyTrack" — a new visual design system **and** a restructured page layout. This replaces the
+earlier Material-default (M3 "Azure/Blue" prebuilt theme) frontend entirely; nothing in the app
+still renders with Material's stock colors.
 
-### Motion and responsiveness
+**Design tokens** — CSS custom properties in `src/styles.css`, one source of truth every component
+reads from rather than hardcoding hex values (the same approach `StatusBadgeComponent` already
+used, extended app-wide):
 
-Motion here is in service of one idea — an application *moves through a pipeline* — so it is used
-where it makes a state change easier to follow and essentially nowhere else. The bar for adding an
-animation was "does this clarify something", not "does this look lively"; this is a recruiting
-tool, not a landing page.
+| Token | Value | Use |
+|---|---|---|
+| `--bg` | `#f2efe8` | Page background (warm cream) |
+| `--surface` | `#fbfaf7` | Cards, list rows, inputs |
+| `--ink` | `#152232` | Text, sidebar, primary buttons, dark panels |
+| `--accent` | `#f9c46b` | Active nav, logo mark, selected-row tint |
+| Status colors | `#64748b`/`#0284c7`/`#d97706`/`#7c3aed`/`#16a34a`/`#dc2626`/`#78716c` | one per `ApplicationStatus` enum value (APPLIED → WITHDRAWN) |
+| Fonts | Plus Jakarta Sans (400–800) + IBM Plex Mono (400–600) | UI/headings + labels/enums/code |
+| Radii | 14px cards, 16px dark hero panels, 10px buttons/inputs, 999px pills | — |
+| Shadow | `0 30px 70px rgba(15,25,38,.32)` | the **only** shadow in the system — the transition confirm-sheet modal; everything else uses a border, never elevation |
 
-Everything runs through `shared/animation/motion.ts` (anime.js v4), which owns the shared duration
-and easing scale and, more importantly, checks `prefers-reduced-motion` in exactly one place
-instead of leaving each call site to remember. Reduced motion removes the *movement*, never the
-outcome — callers still land on the correct end state instantly. `styles.css` carries a CSS
-backstop for the same preference, which also covers plain transitions and still applies if a
-script fails to load.
+**Angular Material** stays wired in, but only where it's still the right tool: `MatFormField`/
+`MatInput` (login/register/settings-admin text fields), `MatSelect` (role dropdowns), and
+`MatPaginator` (Postings, `/admin/users`) — all restyled via global `.mat-mdc-*` overrides in
+`styles.css` rather than left in M3 defaults. Everywhere Material's opinionated shape/elevation
+system fought the design more than it helped — the applications list, the postings grid, the
+sidebar/header shell, the 5-step pipeline stepper, the state-machine graph, the transition
+confirm-sheet and posting-editor modals — those are plain custom components instead, the same
+pattern `StatusBadgeComponent`/`PipelineProgressComponent` already used successfully pre-redesign.
 
-What actually animates:
+**Route / page structure.** The old per-role page split is gone; every authenticated route now
+renders role-adaptive content instead of being a separate page per role:
 
-- **`PipelineProgressComponent`** — a stepper rendering APPLIED → SCREENING → INTERVIEW → OFFER →
-  ACCEPTED with a track that fills to the current stage, shown on the candidate's applications and
-  on each kanban card. This is the one piece of UI that makes the state machine — the point of the
-  whole project — visible at a glance rather than as a single status word. The fill animates only
-  when a status *changes* while you're watching; on first paint it's set directly, since twenty
-  rows animating their pipelines at once would be noise.
-- **Kanban card advance** — the card lifts and slides out of its column, then reappears in the new
-  one. The recruiter's core action, made tangible.
-- **Staggered list entrance** and a **row flash** on in-place status changes. The table gets the
-  flash rather than a slide, because the row doesn't move — only its status cell changes, and
-  animating movement that didn't happen would be a lie.
-- **Audit trail reveal** — entries arrive oldest-to-newest, so a history reads as unfolding.
+| Route | What it is | Role behavior |
+|---|---|---|
+| `/login`, `/register` | Restyled two-pane cream/navy auth screens | unchanged auth logic; no demo role picker — role comes from the real JWT |
+| `/` | **New** — Overview dashboard: stat row, pipeline-shape bars, a role-specific nudge panel, recent-activity log | copy, stats, and nudge content are role-conditional |
+| `/applications` | Merges the old `MyApplicationsComponent` + `ApplicationsDashboardComponent` | CANDIDATE sees only their own (`GET /api/applications/mine`); RECRUITER/ADMIN see all, with search/status-filter. Master-detail: list + a sticky detail panel with the stepper, an "available to you as `<ROLE>`" action row, an optional "Inspect permissions" denied-transitions panel, and the audit trail. Actions open a transition confirm-sheet (note field, optional) before issuing the real `PATCH` — the pre-redesign UI fired transitions immediately on click, this one doesn't. |
+| `/state-machine` | **New** — a visual graph of the happy path + terminal branches, mirroring `TransitionValidator` | node counts reflect the current role's visible-application scope |
+| `/postings` | Merges the old candidate browse view + admin manage view | ADMIN gets create/edit/close; CANDIDATE gets Apply; RECRUITER gets "View pipeline" (deep-links into `/applications?postingId=`). Non-admins get a dashed "Call POST /api/postings as `<ROLE>` →" button that issues a **real** API request and renders the genuine 403 response — not a simulated one. |
+| `/settings` | **New**, plus the new home for admin user management | Profile card (read-only) + a Transition matrix card whose ALLOW/DENY cells are computed live from the same ported validator logic, not hardcoded. ADMIN gets an additional card linking to `/admin/users` (still guarded, restyled, unchanged logic). |
 
-Deliberately *not* built: a rolling counter for the kanban column totals. It means driving an
-element's `textContent` by hand while Angular is also binding it, and the card animation already
-communicates that something moved. Left out rather than half-built.
+`roleGuard('ADMIN')` now protects exactly one route, `/admin/users` — the only page that's still
+genuinely role-exclusive; everywhere else, `authGuard` alone is enough and the component itself
+decides what to render for the current role. The old `homeRedirectGuard` (which sent `/` to a
+per-role landing page) is gone, since `/` is a real page now.
 
-**Responsiveness** is a first pass, and worth being honest about: before it the project had no
-media queries at all, so the nav clipped on a phone and tables pushed the page sideways. Now the
-nav wraps to two rows (no hamburger — there are only a handful of links, so a menu would add
-interaction cost for no gain), tables scroll within their own container, and the kanban
-snap-scrolls horizontally. The board deliberately still scrolls sideways on mobile rather than
-stacking: a pipeline *is* a horizontal sequence, and stacking would destroy the left-to-right
-reading that makes the view worth having.
+**Client-side transition validator.** `shared/transition/transition-validator.ts` is a faithful
+TypeScript port of the backend's `TransitionValidator` (same terminal-state check, same
+forward-path table, same per-target role rule), used only to decide which action buttons render
+and what the "Inspect permissions" panel lists as denied-with-reason. It is explicitly **not** the
+authority — every transition still goes through the real `PATCH /api/applications/{id}/status`,
+and the server's own validator makes the actual call independently. The Settings page's transition
+matrix and the State-machine page's graph both read from this same module, so there's one place
+the client-side rule lives, not three copies.
+
+**Known, documented gaps against the design's mockup** — HireFlow's real data model doesn't match
+the design's fictional multi-employer job-board scenario in a couple of places, handled honestly
+rather than faked:
+- Postings have no separate "company" field (title + description only) — the design's "role /
+  company" list column becomes "posting title / truncated description."
+- `RECRUITER` has no API path to resolve a candidate's email from their id (only
+  `GET /api/admin/users`, which is ADMIN-only) — RECRUITER views fall back to `Candidate #<id>`,
+  same as the pre-redesign dashboard; `ADMIN` resolves real emails via that endpoint.
+- Applications search/status-filter run client-side over a generously-sized single fetch rather
+  than a true server-side free-text search — the real API only exposes `postingId`/`status`
+  filters, no text search parameter.
+
+### Motion
+
+The design brief is explicit and deliberately restrained: "none beyond default hover color
+changes... at most a 120ms background-color transition on rows and buttons." The redesigned pages
+honor that — list rows and buttons get a plain CSS `transition: background-color 120ms ease`
+(`--transition-fast` in `styles.css`), and that's it.
+
+`shared/animation/motion.ts` (anime.js v4) — the staggered list reveal, the kanban card-advance
+slide, and the row-flash-on-change helpers described in earlier revisions of this README — is kept
+in the codebase (still exported, still `prefers-reduced-motion`-aware) but is **not called by any
+of the redesigned pages**. This is a deliberate reconciliation, not an oversight: the design spec's
+restraint is a real, stated decision, and the motion module remains as a documented, working piece
+of the project's history rather than being deleted. `PipelineProgressComponent` (the 5-step
+stepper) was rewritten to plain CSS with no JS-driven fill animation, in keeping with the same
+brief.
+
+### Responsiveness
+
+Below ~1180px (the design's documented breakpoint): the sidebar collapses to icons only, the
+Overview stat row goes 2×2, the Applications master-detail grid collapses to one column with the
+detail panel becoming a full-screen drawer (opened by selecting a row, closed with a "‹ Back to
+list" button), and the Postings grid drops to a single column. Verified live at 1024px width in an
+actual browser (see "Frontend verified end-to-end" below), not just written and assumed correct.
 
 ### Running the frontend
 
@@ -284,8 +317,9 @@ ng test --watch=false --browsers=ChromeHeadless
 
 **Verified**: 14/14 tests pass, including the guard specs (not-logged-in → `/login`, wrong role →
 `/forbidden`, correct role → allowed) and the interceptor spec. Re-verified 14/14 (unchanged) after
-adding the admin user-management screen — no new `.spec.ts` files were added alongside it, so the
-count didn't move; the screen was instead verified live in a browser (below).
+the ApplyTrack redesign — the redesign changed templates/styles and route wiring, not the units
+under test (guards, interceptor, `AppComponent`), so the count and coverage held; the new pages
+themselves were instead verified live in a browser and via the rewritten e2e suite (below).
 
 *Environment note:* the plain `ChromeHeadless` launcher fails to capture in this sandbox
 (`karma.conf.js` documents this and ships a `ChromeHeadlessNoSandbox` custom launcher for it,
@@ -314,37 +348,42 @@ re-verified after this change — still **247/247 passing**.
 ### Frontend verified end-to-end (not just "it compiles")
 
 With Postgres up, the real backend running (`mvn spring-boot:run`), and `ng serve` running, the
-following was exercised in an actual browser against the real API — not mocked:
+ApplyTrack-redesigned frontend was exercised in an actual browser against the real API — not
+mocked — as all three roles:
 
-- Register a candidate → auto-login → lands on the candidate view, nav/role badge correct.
-- Register two more accounts, promote one to `ADMIN` and one to `RECRUITER` directly in Postgres
-  (`UPDATE users SET role = ... WHERE email = ...` — self-registration always forces `CANDIDATE`,
-  by design; see "Known gaps" below), then re-login to pick up the new role in the JWT.
-- Log in as `ADMIN` → create a job posting → it appears immediately.
-- Log in as the `CANDIDATE` → the posting is visible on the open-postings list → apply → button
-  correctly flips to a disabled "Already applied" → "My Applications" shows status `APPLIED` with
-  a Withdraw action and (correctly) no Accept action, since Accept is only legal from `OFFER`.
-- Log in as `RECRUITER` → applications table shows the application with the *correct* next legal
-  action rendered as the button label ("Advance → SCREENING") → clicking it transitions the
-  application and the button updates itself to "Advance → INTERVIEW" → "View events" shows the
-  full audit trail with actor and timestamp for both the creation and the transition.
+- **CANDIDATE**: registered through the real form → landed on Overview (candidate copy: "Your
+  search, in focus," role-correct stats/pipeline/nudge) → Job postings → Apply → button correctly
+  flips to "Already applied" → the real 403 demo button (`Call POST /api/postings as CANDIDATE →`)
+  produces the genuine backend response, not a canned one → Applications shows the application
+  with a live stepper and audit trail → toggled "Inspect permissions" and confirmed the denied
+  panel lists the correct reasons (ported validator) for every illegal target → opened the
+  transition confirm-sheet on Withdraw, confirmed with a note, watched the real `PATCH` land and
+  the audit trail update with that note → Overview's activity log picked up the same event with
+  "You" as the actor and the note text.
+- **RECRUITER**: logged in → Overview shows the recruiter-specific nudge ("Offers are the
+  candidate's call") and real in-scope counts → Applications shows every application (candidate
+  emails correctly fall back to `Candidate #<id>`, since RECRUITER has no API path to resolve
+  them) → selected a row, advanced it one step through the confirm sheet with a note, watched the
+  stepper/status/audit-trail update in place → Job postings → "View pipeline" correctly deep-links
+  into Applications filtered to that posting (dismissable chip) → the same real 403 demo as
+  CANDIDATE → Settings' transition matrix renders the correct ALLOW/DENY grid for RECRUITER.
+- **ADMIN**: Overview shows "The whole org, one view" and the admin-only nudge → Job postings shows
+  "+ New posting" instead of the 403 demo → created a posting through the new modal, watched it
+  appear, closed it (chip flips to CLOSED, Reopen appears) → attempting `/admin/users` as
+  RECRUITER/CANDIDATE (direct navigation, fresh session) correctly redirects through
+  `/login?redirect=...` to `/forbidden`; as ADMIN, Settings' "Manage users" card links straight
+  in → created a RECRUITER account through the restyled form, it appeared in the table immediately.
+- **Responsive**: resized to 1024px (below the design's ~1180px breakpoint) and confirmed the
+  sidebar collapses to icons-only and the Applications detail panel becomes a full-screen drawer
+  with a working "‹ Back to list" control.
 - No console errors, no CORS failures, throughout.
-
-**Admin user management, verified separately and chained into a real login as the new account:**
-with the same backend/frontend/Postgres running, logged in as an `ADMIN` (seeded via the same
-`UPDATE users SET role = 'ADMIN' WHERE email = '...'` approach described above), opened
-`/admin/users` from the "Manage Users" nav link, created a new account (email + password + role
-`RECRUITER`, no `CANDIDATE` option present in the selector) through the form → it appeared
-immediately at the top of the users table with the correct role and created-date. Logged out, then
-logged back in **as that newly-created account** (not the seeding admin) — landed on the
-recruiter's Applications dashboard with the `RECRUITER` role badge and role-appropriate nav
-(no "Manage Postings"/"Manage Users" links), and the applications list loaded successfully,
-confirming the role baked into the new account's JWT is real and not just a 201 response. No
-console errors throughout.
 
 Not exercised in this pass (documented as a gap, not claimed): the interceptor's refresh-on-401
 path wasn't triggered live (access tokens are short-lived but not expired within a manual test
-session) — its behavior is covered instead by `auth.interceptor.spec.ts` against a mocked 401.
+session) — its behavior is covered instead by `auth.interceptor.spec.ts` against a mocked 401. An
+actual PDF résumé upload/download wasn't exercised live in this pass either (no sample file in this
+environment) — the upload/download UI itself was confirmed present and wired to the same
+`ApplicationService.uploadResume()`/`downloadResume()` calls the pre-redesign UI used, unchanged.
 
 ## Running it
 
@@ -473,22 +512,34 @@ stack you already have running — either local dev (`mvn spring-boot:run` + `ng
 two ports — plus, for the negative authorization proofs, it calls the backend directly with
 Playwright's `request` context (no browser involved at all).
 
-**What it covers**, per the PRD's role/state-machine scope (`e2e/tests/`):
+**What it covers**, per the PRD's role/state-machine scope (`e2e/tests/`) — rewritten for the
+ApplyTrack redesign's unified routes and selectors (`utils/ui.ts`'s `loginViaUi` now clicks
+"Sign in", not "Log in"; rows are targeted by `#app-row-{id}`/`#posting-card-{id}` instead of text
+matches on a `<tr>`), while keeping the same scenarios the pre-redesign suite covered:
 
-- `candidate.positive.spec.ts` — register through the real form → browse open postings → apply →
-  see it in "My Applications" → (a seeded recruiter advances it APPLIED→SCREENING→INTERVIEW→OFFER
-  via direct API calls) → accept the offer.
-- `recruiter.positive.spec.ts` — log in → see all applications → advance one (APPLIED→SCREENING)
-  → reject a *different* one → open its audit trail and confirm both events are there.
-- `admin.positive.spec.ts` — log in → create a posting → see it appear → close it.
-- `guards.negative.spec.ts` — a CANDIDATE hitting `/admin/postings` or `/recruiter/applications`
-  directly by URL is blocked by `roleGuard`, asserted on the resulting URL/page content (not on a
-  button being hidden). Also covers an unauthenticated visitor hitting a guarded route.
-- `api-security.negative.spec.ts` — the direct-API proofs, no UI involved: a CANDIDATE cannot
-  `PATCH` or `GET /events` on another candidate's application (**403**, ownership — enforced in
-  `ApplicationService`); a CANDIDATE attempting a RECRUITER-only transition on their *own*
-  application gets **400**, not 403 (`TransitionValidator`'s domain — see "403 vs 400" above); an
-  unauthenticated request to a protected endpoint gets **401**; and a non-ADMIN calling
+- `candidate.positive.spec.ts` — register through the real form → browse open postings (`/postings`)
+  → apply → see it in Applications (`/applications`, unified route — CANDIDATE sees only their own)
+  → (a seeded recruiter advances it APPLIED→SCREENING→INTERVIEW→OFFER via direct API calls) → open
+  the transition confirm-sheet and accept the offer for real (the pre-redesign UI fired the
+  transition immediately on click; this one requires opening and confirming a modal first).
+- `recruiter.positive.spec.ts` — log in → Applications shows every application → advance one
+  (APPLIED→SCREENING) through the confirm sheet → reject a *different* one the same way → its
+  audit trail is already visible in the detail panel for whichever row is selected (no more
+  per-row toggle) — confirm both events are there. A second test exercises the real 403 demo on
+  `/postings` as a non-admin.
+- `admin.positive.spec.ts` — log in → Job postings (`/postings`) → create a posting through the new
+  modal → see it appear → close it.
+- `guards.negative.spec.ts` — the old per-role pages (`/admin/postings`, `/recruiter/applications`)
+  are gone; the one route that's still genuinely role-exclusive is `/admin/users`. A CANDIDATE and
+  a RECRUITER each hitting it directly by URL are blocked by `roleGuard('ADMIN')`, asserted on the
+  resulting URL/page content (not on a button being hidden). Also covers an unauthenticated visitor
+  hitting a guarded route.
+- `api-security.negative.spec.ts` — **unchanged** from before the redesign (no UI selectors, no
+  route dependency — it drives the backend directly via Playwright's `request` context): a
+  CANDIDATE cannot `PATCH` or `GET /events` on another candidate's application (**403**, ownership
+  — enforced in `ApplicationService`); a CANDIDATE attempting a RECRUITER-only transition on their
+  *own* application gets **400**, not 403 (`TransitionValidator`'s domain — see "403 vs 400"
+  above); an unauthenticated request to a protected endpoint gets **401**; and a non-ADMIN calling
   `PATCH /api/postings/{id}` directly gets **403**.
 
 **A real finding from writing these tests**: `AuthService` keeps tokens in memory only (see
@@ -516,21 +567,25 @@ npx playwright install chromium   # first time only
 npx playwright test
 ```
 
-**Verified**: run against the local dev stack (`mvn spring-boot:run` + `ng serve` + the existing
-`hireflow-postgres` container) in this environment, all **11/11 tests passed**, confirmed stable
-across three consecutive runs.
+**Verified**: run against the local dev stack (`mvn spring-boot:run` + `ng serve`, native Postgres)
+after the ApplyTrack redesign, all **12/12 tests passed** (11 scenarios plus the new real-403-demo
+test added for the redesigned Postings page) on a clean single run.
 
-**The specific proof this suite is real, not decorative** (per the PRD's success criteria): with
-the suite green, `@PreAuthorize("hasRole('ADMIN')")` was commented out on
-`PostingController#update` (`PATCH /api/postings/{id}`), the backend was restarted, and the suite
-was re-run. Result: **1 test failed** —
-`api-security.negative.spec.ts › a non-ADMIN cannot PATCH a posting directly (403)` — because the
-weakened endpoint returned **200** (and actually closed the posting) for a CANDIDATE token instead
-of denying it, while the other 10 tests still passed unaffected. This is also what motivated that
-specific test's existence: none of the other 10 tests touch `PATCH /api/postings/{id}` as anything
-other than an ADMIN, so without it, weakening that one annotation would have gone completely
-unnoticed by the suite. The annotation was then restored (confirmed via `git diff` showing no
-changes) and the backend restarted; the suite was re-run once more and all **11/11 passed again**.
+**The specific proof this suite is real, not decorative** (per the PRD's success criteria) was
+performed once, against the pre-redesign version of this suite, and — per this task's own
+instructions — was not repeated here, since `api-security.negative.spec.ts` (the spec that proof
+exercises) is byte-for-byte unchanged by the redesign: with the suite green,
+`@PreAuthorize("hasRole('ADMIN')")` was commented out on `PostingController#update`
+(`PATCH /api/postings/{id}`), the backend was restarted, and the suite was re-run. Result: **1 test
+failed** — `api-security.negative.spec.ts › a non-ADMIN cannot PATCH a posting directly (403)` —
+because the weakened endpoint returned **200** (and actually closed the posting) for a CANDIDATE
+token instead of denying it, while every other test still passed unaffected. This is also what
+motivated that specific test's existence: none of the other tests touch `PATCH /api/postings/{id}`
+as anything other than an ADMIN, so without it, weakening that one annotation would have gone
+completely unnoticed by the suite. The annotation was then restored (confirmed via `git diff` showing no
+changes) and the backend restarted; the suite was re-run once more and all 11 tests (the suite's
+size at the time this proof was performed) passed again. That proof's validity carries forward
+unchanged to the current 12-test suite, since the spec it exercises wasn't touched.
 
 ## Full stack via Docker Compose
 
@@ -565,16 +620,20 @@ time) is `http://localhost:8080` — the **host-published** port the `backend` c
 (`BACKEND_HOST_PORT` defaulting to 8080, `FRONTEND_HOST_PORT` defaulting to 4200) are configurable
 in `.env`, same pattern as the existing `DB_HOST_PORT`.
 
-**Verified in this environment**: `docker compose --profile full up -d --build` was run against
-the already-running `hireflow-postgres` container (Compose recognized it as satisfying the
-`postgres` service and left it alone rather than recreating it). Both new images built
-successfully and both containers reached a running state. With the local `mvn`/`ng serve`
-processes stopped first (so the containers could bind the same host ports), the containerized
-stack was exercised through an actual browser at `http://localhost:4200`: register → land on the
-candidate view → browse the open posting list → apply → see it in My Applications with status
-APPLIED, all against the containerized backend on `http://localhost:8080`, with no console errors.
-After verifying, `docker compose stop backend frontend` was run, leaving `postgres` running exactly
-as it was found — host ports 8080/4200 are free again.
+**Verified in this environment** (pre-dating the ApplyTrack redesign — not re-run in this session,
+since the task that produced the redesign was explicitly frontend-only and native-Postgres/`ng
+serve`/`mvn spring-boot:run` based, with Docker/Colima out of scope): `docker compose --profile
+full up -d --build` was run against the already-running `hireflow-postgres` container (Compose
+recognized it as satisfying the `postgres` service and left it alone rather than recreating it).
+Both new images built successfully and both containers reached a running state. With the local
+`mvn`/`ng serve` processes stopped first (so the containers could bind the same host ports), the
+containerized stack was exercised through an actual browser at `http://localhost:4200`: register →
+browse the open posting list → apply → see it in the applications list with status APPLIED, all
+against the containerized backend on `http://localhost:8080`, with no console errors. After
+verifying, `docker compose stop backend frontend` was run, leaving `postgres` running exactly as it
+was found — host ports 8080/4200 are free again. The containerized frontend image will pick up the
+redesign automatically on its next `--build` (nothing about the Dockerfile/nginx setup changed),
+but that rebuild itself hasn't been re-verified since the redesign.
 
 ## Continuous integration
 
@@ -599,23 +658,20 @@ workflow (`checkout` → `setup` → run the real command, no extra layers), tri
 
 **Not run in this environment** — there is no GitHub Actions runner available here, and the repo
 hasn't been pushed to GitHub (out of scope for this task; see "Constraints"). What *was* verified
-directly: `mvn -B verify` (BUILD SUCCESS, 262/262), `npm ci` + `ng test --watch=false
---browsers=ChromeHeadlessNoSandbox` (14/14), `ng build` (succeeds), and `npx playwright test`
-(11/11) all actually run and pass in this environment using the same commands the workflow uses;
-the YAML itself was parsed successfully (`YAML.load_file` via Ruby's Psych) to catch syntax
-errors. The badge at the top of this README will only turn green once the workflow has actually
-run on GitHub.
+directly: `mvn -B verify` (BUILD SUCCESS, 262/262 — pre-dates the frontend redesign, which didn't
+touch the backend), `npm ci` + `ng test --watch=false --browsers=ChromeHeadlessNoSandbox` (14/14),
+`ng build` (succeeds), and `npx playwright test` (12/12, re-verified after the ApplyTrack redesign
+against the rewritten suite) all actually run and pass in this environment using the same commands
+the workflow uses; the YAML itself was parsed successfully (`YAML.load_file` via Ruby's Psych) to
+catch syntax errors. The badge at the top of this README will only turn green once the workflow has
+actually run on GitHub.
 
 ## Known gaps / non-goals
 
 Explicitly out of scope for now:
 
 - **No password reset / email verification.** Registration and login only.
-- **No file uploads** (résumés, attachments).
 - **No multi-tenancy.** Single organization; all RECRUITER/ADMIN users see the whole pipeline.
-- **No pagination** on list endpoints (`/api/postings`, `/api/applications`) — fine at demo scale,
-  would need it before this saw real traffic.
-- **No rate limiting** on `/api/auth/*`.
 - **No soft-delete / posting archival** beyond the `OPEN`/`CLOSED` status.
 - **JWT refresh tokens are stored hashed (SHA-256) but not IP/device-bound** — rotation-on-use is
   the only replay defense currently in place.

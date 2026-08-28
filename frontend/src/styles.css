@@ -1,5 +1,76 @@
-/* Global styles: keep it clean and minimal — this is a portfolio piece demonstrating Angular
-   patterns (guards, interceptor, standalone components), not a design showcase. */
+/* ==============================================================================================
+   HireFlow — design tokens
+   ==============================================================================================
+   Ported from the "ApplyTrack" design handoff (design/design_handoff_applytrack/README.md +
+   ApplyTrack.dc.html) — warm cream / ink-navy / amber palette, Plus Jakarta Sans + IBM Plex Mono.
+   Every component in the app reads color/spacing/radius from these custom properties rather than
+   hardcoding hex values, so the palette lives in exactly one place — the same "one place, not
+   scattered" approach this project already used for `.status-badge`.
+   ============================================================================================ */
+
+:root {
+  /* Color */
+  --bg: #f2efe8;
+  --surface: #fbfaf7;
+  --ink: #152232;
+  --accent: #f9c46b;
+  --border: rgba(21, 34, 50, 0.08);
+  --border-strong: rgba(21, 34, 50, 0.16);
+  --ink-60: rgba(21, 34, 50, 0.62);
+  --ink-55: rgba(21, 34, 50, 0.55);
+  --ink-50: rgba(21, 34, 50, 0.5);
+  --ink-45: rgba(21, 34, 50, 0.45);
+  --ink-35: rgba(21, 34, 50, 0.35);
+
+  /* On the dark ink panels (sidebar, hero panels, modals-on-dark, state machine) */
+  --on-dark: #fff;
+  --on-dark-65: rgba(255, 255, 255, 0.65);
+  --on-dark-45: rgba(255, 255, 255, 0.45);
+  --on-dark-border: rgba(255, 255, 255, 0.07);
+  --on-dark-border-strong: rgba(255, 255, 255, 0.16);
+  --on-dark-fill: rgba(255, 255, 255, 0.05);
+  --on-dark-fill-strong: rgba(255, 255, 255, 0.08);
+
+  /* Status colors — one per ApplicationStatus enum value. This is the single source of truth;
+     .status-badge, the pipeline stepper, the state machine graph and the transition matrix all
+     read these same hex values (as plain + alpha-suffixed hex, matching the design's
+     `background: <color>1a; border: 1px solid <color>44` chip formula exactly). */
+  --status-applied: #64748b;
+  --status-screening: #0284c7;
+  --status-interview: #d97706;
+  --status-offer: #7c3aed;
+  --status-accepted: #16a34a;
+  --status-rejected: #dc2626;
+  --status-withdrawn: #78716c;
+
+  /* Role colors (avatar fills, owner legends) */
+  --role-candidate: #f9c46b;
+  --role-recruiter: #7dd3fc;
+  --role-admin: #c4b5fd;
+
+  /* Semantic accents used outside the status enum */
+  --green: #16a34a;
+  --red: #dc2626;
+  --red-strong: #b91c1c;
+  --stone: #57534e;
+
+  /* Shape */
+  --radius-card: 14px;
+  --radius-hero: 16px;
+  --radius-btn: 10px;
+  --radius-btn-sm: 9px;
+  --radius-pill: 999px;
+
+  /* Shadow — the only shadow in the system belongs to the modal. */
+  --shadow-modal: 0 30px 70px rgba(15, 25, 38, 0.32);
+
+  /* Type */
+  --font-sans: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, monospace;
+
+  /* Motion — per the design spec: nothing beyond a short background-color transition. */
+  --transition-fast: 120ms ease;
+}
 
 * {
   box-sizing: border-box;
@@ -10,95 +81,362 @@ body {
   height: 100%;
   margin: 0;
   padding: 0;
-  font-family: Roboto, 'Helvetica Neue', Arial, sans-serif;
-  color: #1a1a1a;
-  background: #fff;
+  font-family: var(--font-sans);
+  color: var(--ink);
+  background: var(--bg);
+  -webkit-font-smoothing: antialiased;
 }
 
 h1,
 h2,
 h3 {
-  font-weight: 600;
+  font-weight: 700;
+  margin: 0;
+  text-wrap: pretty;
+}
+
+p {
+  text-wrap: pretty;
 }
 
 a {
-  color: #2454ff;
+  color: var(--ink);
+}
+
+a:hover {
+  color: rgba(21, 34, 50, 0.75);
 }
 
 button {
   font-family: inherit;
 }
 
-/* ---------------------------------------------------------------------------------------------
-   Status badge: ONE definition for the ApplicationStatus color treatment, reused everywhere a
-   status appears (My Applications, the recruiter dashboard's table AND kanban board, the audit
-   trail) via the shared <app-status-badge> component (shared/status-badge/status-badge.component.ts).
-   A global class (rather than per-component styles) is the right level of DRY here: it's plain
-   CSS keyed only off a `data-status` attribute, consistent with this project's existing
-   minimal-CSS approach, and it means the badge's look is defined in exactly one place instead of
-   being copy-pasted (as it was before) into every component that happens to render a status.
-   --------------------------------------------------------------------------------------------- */
-.status-badge {
-  display: inline-block;
-  padding: 0.2rem 0.55rem;
-  border-radius: 999px;
-  font-size: 0.75rem;
+input,
+select,
+textarea {
+  font-family: inherit;
+}
+
+::selection {
+  background: #fbd28a;
+}
+
+.mono {
+  font-family: var(--font-mono);
+}
+
+/* Section kicker: mono 10.5px / .13em / ink-50 / uppercase — used above nearly every card title
+   and page breadcrumb throughout the app. */
+.kicker {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.13em;
+  color: var(--ink-50);
+  text-transform: uppercase;
+}
+
+.breadcrumb {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.16em;
+  color: var(--ink-45);
+  text-transform: uppercase;
+}
+
+.page-title {
+  margin: 0;
+  font-size: 46px;
+  line-height: 1.05;
+  font-weight: 700;
+  letter-spacing: -0.032em;
+}
+
+.page-sub {
+  margin: 12px 0 0;
+  font-size: 15.5px;
+  line-height: 1.5;
+  color: var(--ink-60);
+  max-width: 620px;
+}
+
+.card-title {
+  font-size: 25px;
+  font-weight: 700;
+  letter-spacing: -0.025em;
+  margin: 0;
+}
+
+.panel-title {
+  font-size: 21px;
+  font-weight: 700;
+  letter-spacing: -0.022em;
+  margin: 0;
+}
+
+/* ------------------------------------------------------------------------------------------
+ * Layout primitives
+ * ---------------------------------------------------------------------------------------- */
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  padding: 26px;
+}
+
+.card-dark {
+  background: var(--ink);
+  border-radius: var(--radius-card);
+  color: var(--on-dark);
+}
+
+.page-container {
+  padding: 40px 44px 72px;
+  max-width: 1500px;
+  margin: 0 auto;
+}
+
+/* ------------------------------------------------------------------------------------------
+ * Buttons — plain, custom, not Material. Radius/weight/size per the design's button system;
+ * a shared 120ms background-color transition is the one motion allowance the spec keeps.
+ * ---------------------------------------------------------------------------------------- */
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  border: none;
+  cursor: pointer;
+  border-radius: var(--radius-btn);
+  padding: 14px 20px;
+  font-size: 14.5px;
   font-weight: 600;
+  font-family: var(--font-sans);
+  transition: background-color var(--transition-fast), border-color var(--transition-fast), opacity var(--transition-fast);
   white-space: nowrap;
-  background: #eef1ff;
-  color: #2454ff;
+}
+
+.btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.btn-sm {
+  border-radius: var(--radius-btn-sm);
+  padding: 9px 14px;
+  font-size: 13px;
+}
+
+.btn-ink {
+  background: var(--ink);
+  color: #fff;
+}
+
+.btn-ink:hover:not(:disabled) {
+  background: #223349;
+}
+
+.btn-outline {
+  background: transparent;
+  border: 1px solid var(--border-strong);
+  color: var(--ink);
+}
+
+.btn-outline:hover:not(:disabled) {
+  background: rgba(21, 34, 50, 0.05);
+}
+
+.btn-ghost {
+  background: rgba(21, 34, 50, 0.09);
+  color: var(--ink);
+  border: none;
+}
+
+.btn-ghost:hover:not(:disabled) {
+  background: rgba(21, 34, 50, 0.14);
+}
+
+.btn-accept {
+  background: var(--green);
+  color: #fff;
+  border: none;
+}
+
+.btn-reject {
+  background: rgba(220, 38, 38, 0.1);
+  color: var(--red-strong);
+  border: none;
+}
+
+.btn-reject:hover:not(:disabled) {
+  background: rgba(220, 38, 38, 0.18);
+}
+
+.btn-withdraw {
+  background: rgba(120, 113, 108, 0.14);
+  color: var(--stone);
+  border: none;
+}
+
+/* Solid variants used only by the transition confirm-sheet's Confirm button — a different
+   (solid, not tinted) treatment from the list/detail action buttons above, per the design's
+   `confirmStyle` builder. */
+.btn-confirm-reject {
+  background: var(--red-strong);
+  color: #fff;
+  border: none;
+}
+
+.btn-confirm-withdraw {
+  background: var(--stone);
+  color: #fff;
+  border: none;
+}
+
+.btn-dashed {
+  background: transparent;
+  border: 1px dashed rgba(21, 34, 50, 0.28);
+  color: var(--ink-60);
+  border-radius: var(--radius-btn);
+  padding: 13px 18px;
+  font-size: 13.5px;
+  font-weight: 600;
+  text-align: left;
+  line-height: 1.45;
+  cursor: pointer;
+}
+
+.btn-dark {
+  background: var(--on-dark-fill-strong);
+  border: 1px solid var(--on-dark-border-strong);
+  color: #fff;
+}
+
+.btn-dark:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.14);
+}
+
+.btn-text {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--ink);
+  padding: 0;
+}
+
+/* ------------------------------------------------------------------------------------------
+ * Status badge / chip — ONE definition for the ApplicationStatus color treatment, reused
+ * everywhere a status appears via <app-status-badge> (shared/status-badge). Colors come only
+ * from the --status-* custom properties above; the alpha-suffixed hex pairs below mirror the
+ * design's `chip()` formula exactly (`background: <color>1a`, `border: 1px solid <color>44`).
+ * ---------------------------------------------------------------------------------------- */
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.09em;
+  padding: 5px 10px;
+  border-radius: var(--radius-pill);
+  white-space: nowrap;
+  text-transform: uppercase;
 }
 
 .status-badge[data-status='APPLIED'] {
-  background: #eef1ff;
-  color: #2454ff;
+  color: var(--status-applied);
+  background: #64748b1a;
+  border: 1px solid #64748b44;
 }
-
 .status-badge[data-status='SCREENING'] {
-  background: #f3ebff;
-  color: #7c3aed;
+  color: var(--status-screening);
+  background: #0284c71a;
+  border: 1px solid #0284c744;
 }
-
 .status-badge[data-status='INTERVIEW'] {
-  background: #fff4e0;
-  color: #b26a00;
+  color: var(--status-interview);
+  background: #d977061a;
+  border: 1px solid #d9770644;
 }
-
 .status-badge[data-status='OFFER'] {
-  background: #e0f7f5;
-  color: #0f766e;
+  color: var(--status-offer);
+  background: #7c3aed1a;
+  border: 1px solid #7c3aed44;
 }
-
 .status-badge[data-status='ACCEPTED'] {
-  background: #e6f7ec;
-  color: #1e7e34;
+  color: var(--status-accepted);
+  background: #16a34a1a;
+  border: 1px solid #16a34a44;
 }
-
 .status-badge[data-status='REJECTED'] {
-  background: #fdecea;
-  color: #b3261e;
+  color: var(--status-rejected);
+  background: #dc26261a;
+  border: 1px solid #dc262644;
 }
-
 .status-badge[data-status='WITHDRAWN'] {
-  background: #f2f2f2;
-  color: #666;
+  color: var(--status-withdrawn);
+  background: #78716c1a;
+  border: 1px solid #78716c44;
 }
 
-/* ---------------------------------------------------------------------------------------------
+/* Status dot — the small solid circle used next to a status label in the pipeline-shape rows,
+   activity log, and audit trail (distinct from the outlined chip above). */
+.status-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex: none;
+  background: var(--ink-35);
+}
+.status-dot[data-status='APPLIED'] { background: var(--status-applied); }
+.status-dot[data-status='SCREENING'] { background: var(--status-screening); }
+.status-dot[data-status='INTERVIEW'] { background: var(--status-interview); }
+.status-dot[data-status='OFFER'] { background: var(--status-offer); }
+.status-dot[data-status='ACCEPTED'] { background: var(--status-accepted); }
+.status-dot[data-status='REJECTED'] { background: var(--status-rejected); }
+.status-dot[data-status='WITHDRAWN'] { background: var(--status-withdrawn); }
+
+/* Posting OPEN/CLOSED chip: same chip shape, two-value color scheme instead of the 7-way
+   ApplicationStatus map above. */
+.posting-badge {
+  display: inline-flex;
+  align-items: center;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.09em;
+  padding: 5px 10px;
+  border-radius: var(--radius-pill);
+  white-space: nowrap;
+  text-transform: uppercase;
+}
+.posting-badge[data-status='OPEN'] {
+  color: var(--green);
+  background: rgba(22, 163, 74, 0.1);
+  border: 1px solid rgba(22, 163, 74, 0.28);
+}
+.posting-badge[data-status='CLOSED'] {
+  color: var(--ink-50);
+  background: rgba(21, 34, 50, 0.07);
+  border: 1px solid rgba(21, 34, 50, 0.14);
+}
+
+/* ------------------------------------------------------------------------------------------
  * Motion + responsive baseline
  *
- * Two things live here rather than in component styles because they must hold across every
- * screen in the app: the global reduced-motion opt-out, and the small-viewport rules that turn
- * this from a desktop-only tool into something usable on a phone. Before this the project had
- * no media queries at all - every table simply overflowed off-screen on mobile.
- * ------------------------------------------------------------------------------------------ */
+ * The design spec is explicit: "none beyond default hover color changes... at most a 120ms
+ * background-color transition on rows and buttons." Buttons get that via `.btn`'s transition
+ * above; this covers plain interactive rows (list rows, nav items) app-wide, plus the
+ * belt-and-braces reduced-motion opt-out and the small-viewport rules.
+ * ---------------------------------------------------------------------------------------- */
+.row-hover {
+  transition: background-color var(--transition-fast);
+}
 
-/*
- * Belt-and-braces reduced-motion handling. The JS side already checks
- * `prefers-reduced-motion` (shared/animation/motion.ts) and skips animations, but a CSS
- * backstop also covers plain CSS transitions and anything that slips past a JS guard - and it
- * still applies if a script fails to load.
- */
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
@@ -110,34 +448,114 @@ button {
   }
 }
 
-/* Tables are the main desktop-first offender: they overflow rather than wrap. Give every one a
- * horizontal scroll container instead of letting it push the page sideways. */
 .table-scroll {
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
 }
 
-@media (max-width: 720px) {
-  /* Filter bars and toolbars stack instead of forcing a horizontal squeeze. */
-  .filters,
-  .toolbar,
-  .view-toggle {
-    flex-wrap: wrap;
-  }
+/* ------------------------------------------------------------------------------------------
+ * Angular Material overrides
+ *
+ * Material is still doing the real work for text inputs / selects (a11y, focus handling,
+ * floating labels) and the paginator; these overrides just make its rendered output match the
+ * design's bordered-box inputs (10px radius, border-strong, surface fill, 14.5px type) instead
+ * of M3's default shape/elevation system. Scoped broadly since every form field in the app
+ * should look identical — this *is* the one design for the whole product now.
+ * ---------------------------------------------------------------------------------------- */
+.mat-mdc-form-field {
+  font-family: var(--font-sans);
+  width: 100%;
+}
 
-  /* The pipeline stepper is the first thing to go on a narrow screen: the status badge already
-   * carries the same information in less space, so the graphic is redundant here rather than
-   * merely cramped. */
-  .pipeline-col {
-    display: none;
-  }
+.mat-mdc-text-field-wrapper {
+  background: var(--surface) !important;
+  border-radius: var(--radius-btn) !important;
+}
 
-  table {
-    font-size: 0.92rem;
-  }
+.mdc-notched-outline__leading,
+.mdc-notched-outline__notch,
+.mdc-notched-outline__trailing {
+  border-color: var(--border-strong) !important;
+}
 
-  /* Touch targets: small inline action buttons are hard to hit accurately on a phone. */
-  button {
-    min-height: 36px;
-  }
+.mat-mdc-form-field.mat-focused .mdc-notched-outline__leading,
+.mat-mdc-form-field.mat-focused .mdc-notched-outline__notch,
+.mat-mdc-form-field.mat-focused .mdc-notched-outline__trailing {
+  border-color: var(--ink) !important;
+}
+
+.mat-mdc-form-field-flex {
+  border-radius: var(--radius-btn) !important;
+}
+
+.mat-mdc-floating-label,
+.mdc-floating-label {
+  font-family: var(--font-mono) !important;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  font-size: 12px !important;
+  color: var(--ink-50) !important;
+}
+
+.mat-mdc-input-element,
+.mat-mdc-select-value {
+  font-family: var(--font-sans) !important;
+  font-size: 14.5px !important;
+  color: var(--ink) !important;
+}
+
+.mat-mdc-form-field-subscript-wrapper {
+  font-family: var(--font-sans);
+}
+
+.mat-mdc-select-panel {
+  border-radius: var(--radius-btn) !important;
+  background: var(--surface) !important;
+}
+
+.mat-mdc-option {
+  font-family: var(--font-sans) !important;
+  font-size: 14px !important;
+}
+
+/* mat-mdc-raised/unelevated buttons keep ripple + focus-ring behaviour where still used
+   (Settings' admin user-management form); recolor to the ink palette instead of Azure/Blue. */
+.mat-mdc-raised-button.mat-primary,
+.mat-mdc-unelevated-button.mat-primary {
+  --mdc-filled-button-container-color: var(--ink);
+  --mdc-filled-button-label-text-color: #fff;
+}
+
+.mat-mdc-paginator {
+  background: transparent !important;
+  font-family: var(--font-sans) !important;
+  color: var(--ink-60) !important;
+}
+
+.mat-mdc-paginator .mat-mdc-icon-button {
+  color: var(--ink) !important;
+}
+
+.mat-mdc-table {
+  background: transparent !important;
+  font-family: var(--font-sans) !important;
+}
+
+.mat-mdc-header-cell {
+  font-family: var(--font-mono) !important;
+  font-size: 10.5px !important;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ink-50) !important;
+  border-bottom-color: var(--border) !important;
+}
+
+.mat-mdc-cell,
+.mat-mdc-row {
+  border-bottom-color: var(--border) !important;
+  font-family: var(--font-sans);
+}
+
+.mat-mdc-row:hover {
+  background: rgba(21, 34, 50, 0.03);
 }

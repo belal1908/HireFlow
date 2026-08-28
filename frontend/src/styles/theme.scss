@@ -1,0 +1,38 @@
+// Angular Material M3 theme for the ApplyTrack-styled HireFlow frontend.
+//
+// This is deliberately a thin base, not a full pixel-match: the design tokens (14px card
+// radius, no elevation, specific paddings/mono labels) don't come from Material's M3 shape/
+// elevation system, so this theme just gets Material's plumbing (typography, density, focus
+// rings, form-field/select/button/table structure) working with our brand's palette and font,
+// and the heavy, pixel-exact overrides live in src/styles.css as plain CSS custom-property
+// overrides on top of this. Material is still doing real work here — a11y, keyboard nav,
+// overlay positioning for mat-select, table/paginator internals — this theme just stops it
+// from rendering in Azure/Blue.
+@use '@angular/material' as mat;
+
+// `blue`/`orange` are the closest stock M3 system palettes to our ink (#152232) and
+// accent (#f9c46b) tokens; exact hex matching happens via CSS custom-property overrides in
+// styles.css (Material's M3 palettes are generated tonal ramps, not single hex values, so
+// hand-picking a single override hex per token there is more precise than fighting the Sass
+// palette generator for an exact match here).
+$hireflow-theme: mat.define-theme((
+  color: (
+    theme-type: light,
+    primary: mat.$blue-palette,
+    tertiary: mat.$orange-palette,
+  ),
+  typography: (
+    brand-family: 'Plus Jakarta Sans, system-ui, sans-serif',
+    plain-family: 'Plus Jakarta Sans, system-ui, sans-serif',
+    bold-weight: 700,
+    medium-weight: 600,
+    regular-weight: 400,
+  ),
+  density: (
+    scale: 0,
+  ),
+));
+
+html {
+  @include mat.all-component-themes($hireflow-theme);
+}

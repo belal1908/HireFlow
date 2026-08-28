@@ -1,0 +1,63 @@
+<div class="page-container">
+  <div class="breadcrumb">WORKSPACE / ACCESS &amp; PREFERENCES</div>
+  <div class="header-block">
+    <h1 class="page-title">Settings</h1>
+    <p class="page-sub">Your identity, and exactly what it lets you do.</p>
+  </div>
+
+  <div class="settings-grid">
+    <div class="card profile-card">
+      <div class="panel-title">Profile</div>
+      <div class="panel-sub">How the workspace identifies you.</div>
+
+      <div class="profile-fields">
+        <div class="field">
+          <div class="field-label mono">Email address</div>
+          <div class="readonly-box">{{ authService.currentUser()?.email }}</div>
+        </div>
+        <div class="field">
+          <div class="field-label mono">User ID</div>
+          <div class="readonly-box muted-text">#{{ authService.currentUser()?.id }}</div>
+        </div>
+        <div class="role-row">
+          <div>
+            <div class="role-row-title">Assigned role</div>
+            <div class="role-row-sub">Set at creation. No self-service changes.</div>
+          </div>
+          <span class="mono role-pill">{{ authService.currentUser()?.role }}</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="card matrix-card">
+      <div class="panel-title">Transition matrix</div>
+      <div class="panel-sub">The single decision surface every request passes through.</div>
+
+      <div class="matrix">
+        <div class="matrix-header">
+          <div>Transition</div>
+          <div>Candidate</div>
+          <div>Recruiter</div>
+          <div>Admin</div>
+        </div>
+        @for (row of matrix(); track row.transition; let odd = $odd) {
+          <div class="matrix-row" [class.odd]="odd">
+            <div class="mono matrix-transition">{{ row.transition }}</div>
+            <div class="mono matrix-cell" [class.allow]="row.candidate">{{ row.candidate ? 'ALLOW' : 'DENY' }}</div>
+            <div class="mono matrix-cell" [class.allow]="row.recruiter">{{ row.recruiter ? 'ALLOW' : 'DENY' }}</div>
+            <div class="mono matrix-cell" [class.allow]="row.admin">{{ row.admin ? 'ALLOW' : 'DENY' }}</div>
+          </div>
+        }
+      </div>
+      <p class="matrix-footer">Terminal states — ACCEPTED, REJECTED, WITHDRAWN — have no outbound transitions for any role, including ADMIN.</p>
+    </div>
+  </div>
+
+  @if (isAdmin()) {
+    <div class="card admin-card">
+      <div class="panel-title">User management</div>
+      <div class="panel-sub">Create and review RECRUITER/ADMIN accounts. Admin-only.</div>
+      <a class="btn btn-ink admin-link" routerLink="/admin/users">Manage users →</a>
+    </div>
+  }
+</div>

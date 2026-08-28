@@ -1,0 +1,30 @@
+<div class="modal-overlay" (click)="cancel.emit()">
+  <div class="modal-card" (click)="$event.stopPropagation()">
+    <div class="kicker">PATCH /api/applications/{{ pending.applicationId }}/status</div>
+    <h2 class="modal-title">{{ pending.title }}</h2>
+
+    <div class="transition-row">
+      <app-status-badge [status]="pending.from" />
+      <span class="arrow">→</span>
+      <app-status-badge [status]="pending.to" />
+      <span class="spacer"></span>
+      <span class="actor mono">ACTOR: {{ actorRole }}</span>
+    </div>
+
+    <div class="note-block">
+      <div class="kicker">Note (optional · written to the audit log)</div>
+      <textarea
+        class="note-input"
+        [(ngModel)]="note"
+        placeholder="Why this move? Future you will want to know."
+      ></textarea>
+    </div>
+
+    <div class="modal-footer">
+      <button type="button" class="btn btn-outline" (click)="cancel.emit()">Cancel</button>
+      <button type="button" [class]="confirmClass + ' confirm-btn'" [disabled]="submitting" (click)="onConfirm()">
+        {{ submitting ? 'Saving…' : confirmLabel }}
+      </button>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,61 @@
+<div class="shell">
+  <aside class="sidebar">
+    <div class="sidebar-logo">
+      <div class="logo-mark"><span class="logo-ring"></span></div>
+      <span class="logo-name">HireFlow</span>
+    </div>
+
+    <div class="sidebar-nav">
+      <div class="workspace-label">Workspace</div>
+      <nav class="nav-list">
+        @for (item of navItems; track item.path) {
+          <a
+            class="nav-item"
+            [routerLink]="item.path"
+            routerLinkActive="active"
+            [routerLinkActiveOptions]="{ exact: item.exact }"
+          >
+            <mat-icon class="nav-icon">{{ item.icon }}</mat-icon>
+            <span class="nav-label">{{ item.label }}</span>
+            <span class="nav-mark"></span>
+          </a>
+        }
+      </nav>
+    </div>
+
+    <div class="sidebar-bottom">
+      <div class="sidebar-note">
+        <div class="note-kicker">Enforced server-side</div>
+        <div class="note-body">Every transition is checked against role and ownership before the UI ever sees it.</div>
+      </div>
+      <div class="sidebar-user">
+        <div class="avatar" [attr.data-role]="authService.currentUser()?.role">{{ roleInitial }}</div>
+        <div class="user-meta">
+          <div class="user-name">{{ authService.currentUser()?.email }}</div>
+          <div class="user-role">{{ authService.currentUser()?.role }}</div>
+        </div>
+        <button class="logout-btn" type="button" title="Log out" (click)="logout()">
+          <mat-icon class="logout-icon">logout</mat-icon>
+        </button>
+      </div>
+    </div>
+  </aside>
+
+  <div class="shell-main">
+    <header class="topbar">
+      <span class="sync-dot"></span>
+      <span class="sync-text">Workspace synced</span>
+      <div class="spacer"></div>
+      <button
+        class="inspect-toggle"
+        type="button"
+        [class.on]="uiState.inspectPermissions()"
+        (click)="uiState.toggleInspectPermissions()"
+      >
+        {{ uiState.inspectPermissions() ? 'Inspecting permissions' : 'Inspect permissions' }}
+      </button>
+    </header>
+
+    <router-outlet></router-outlet>
+  </div>
+</div>

@@ -1,0 +1,113 @@
+<div class="page-container">
+  <div class="breadcrumb">WORKSPACE / OPPORTUNITIES</div>
+  <div class="header-row">
+    <div class="header-copy">
+      <h1 class="page-title">{{ canManage() ? 'Job postings' : 'Find your next place' }}</h1>
+      <p class="page-sub">
+        {{ canManage() ? 'Create, edit, and close postings for the org.' : 'Open roles you can apply to right now.' }}
+      </p>
+    </div>
+    @if (canManage()) {
+      <button class="btn btn-ink" type="button" (click)="openCreate()">+ New posting</button>
+    } @else {
+      <button class="btn-dashed" type="button" (click)="tryAdminEndpoint()">Call POST /api/postings as {{ role() }} →</button>
+    }
+  </div>
+
+  @if (forbiddenVisible()) {
+    <div class="forbidden-panel">
+      <div class="forbidden-code mono">{{ forbiddenLoading() ? '···' : (forbiddenStatus() ?? '—') }}</div>
+      <div class="forbidden-body">
+        <div class="forbidden-title">Forbidden — and not because the button was hidden.</div>
+        <p class="forbidden-text">
+          The request reached the API with a valid token for {{ role() }} and was refused by the method-level
+          authorization check. The route guard would have blocked the page too — both layers, independently.
+        </p>
+        @if (forbiddenMessage()) {
+          <p class="forbidden-real mono">{{ forbiddenMessage() }}</p>
+        }
+        <div class="mono forbidden-annotation">&#64;PreAuthorize(&quot;hasRole('ADMIN')&quot;)</div>
+      </div>
+      <button class="btn btn-dark forbidden-dismiss" type="button" (click)="dismissForbidden()">Dismiss</button>
+    </div>
+  }
+
+  @if (errorMessage()) {
+    <p class="error-banner" role="alert">{{ errorMessage() }}</p>
+  }
+  @if (applyError()) {
+    <p class="error-banner" role="alert">{{ applyError() }}</p>
+  }
+
+  @if (loading()) {
+    <p class="loading-text">Loading…</p>
+  } @else if (cards().length === 0) {
+    <p class="empty-text">{{ canManage() ? 'No postings yet — create one above.' : 'No open postings right now — check back later.' }}</p>
+  } @else {
+    <div class="posting-grid">
+      @for (card of cards(); track card.posting.id) {
+        <div class="card posting-card" [id]="'posting-card-' + card.posting.id">
+          <div class="posting-head">
+            <div>
+              <div class="posting-title">{{ card.posting.title }}</div>
+              <div class="posting-meta">{{ postedLabel(card.posting) }}</div>
+            </div>
+            <span class="posting-badge" [attr.data-status]="card.posting.status">{{ card.posting.status }}</span>
+          </div>
+          <p class="posting-desc">{{ card.posting.description || 'No description provided.' }}</p>
+          <div class="posting-footer">
+            <div class="mono posting-stat">
+              {{ canManage() || role() === 'RECRUITER' ? (card.applicationCount ?? '—') + ' applications' : postedLabel(card.posting) }}
+            </div>
+            @if (canManage()) {
+              <button class="btn btn-outline btn-sm" type="button" (click)="openEdit(card.posting)">Edit</button>
+              <button class="btn btn-ghost btn-sm" type="button" (click)="toggleOpenClosed(card.posting)">
+                {{ card.posting.status === 'OPEN' ? 'Close' : 'Reopen' }}
+              </button>
+            } @else if (role() === 'CANDIDATE') {
+              @if (hasApplied(card.posting.id)) {
+                <button class="btn btn-outline btn-sm" type="button" disabled>Already applied</button>
+              } @else {
+                <button class="btn btn-ink btn-sm" type="button" [disabled]="applyingId() === card.posting.id" (click)="apply(card.posting)">
+                  {{ applyingId() === card.posting.id ? 'Applying…' : 'Apply' }}
+                </button>
+              }
+            } @else {
+              <button class="btn btn-outline btn-sm" type="button" (click)="viewPipeline(card.posting)">View pipeline</button>
+            }
+          </div>
+        </div>
+      }
+    </div>
+
+    <app-pager [page]="page()" [totalPages]="totalPages()" [totalElements]="totalElements()" [hasNext]="hasNext()" (pageChange)="goToPage($event)" />
+  }
+</div>
+
+@if (modalMode()) {
+  <div class="modal-overlay" (click)="closeModal()">
+    <div class="modal-card" (click)="$event.stopPropagation()" [formGroup]="form">
+      <h2 class="modal-title">{{ modalMode() === 'edit' ? 'Edit posting' : 'New posting' }}</h2>
+
+      <div class="field">
+        <div class="field-label mono">Title</div>
+        <input class="plain-input" type="text" formControlName="title" />
+      </div>
+      <div class="field">
+        <div class="field-label mono">Description</div>
+        <textarea class="plain-textarea" rows="4" formControlName="description"></textarea>
+      </div>
+
+      @if (modalError()) {
+        <p class="form-error">{{ modalError() }}</p>
+      }
+
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline" (click)="closeModal()">Cancel</button>
+        <button type="button" class="btn btn-ink confirm-btn" [disabled]="modalSaving()" (click)="saveModal()">
+          {{ modalSaving() ? 'Saving…' : modalMode() === 'edit' ? 'Save changes' : 'Create posting' }}
+        </button>
+      </div>
+    </div>
+  </div>
+}

@@ -1,0 +1,320 @@
+.header-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 24px;
+  margin: 14px 0 32px;
+  flex-wrap: wrap;
+}
+
+.header-copy {
+  flex: 1;
+  min-width: 320px;
+}
+
+.sig {
+  font-size: 14px;
+}
+
+.legend {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+}
+
+.legend-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.swatch {
+  width: 22px;
+  height: 4px;
+  border-radius: 999px;
+  flex: none;
+}
+
+.swatch-recruiter { background: var(--accent); }
+.swatch-candidate { background: var(--role-recruiter); }
+.swatch-none { background: rgba(21, 34, 50, 0.3); }
+
+.legend-label {
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  color: var(--ink-60);
+}
+
+.error-banner {
+  color: var(--red-strong);
+  background: rgba(220, 38, 38, 0.08);
+  border: 1px solid rgba(220, 38, 38, 0.22);
+  border-radius: var(--radius-btn);
+  padding: 10px 14px;
+  font-size: 13.5px;
+  margin-bottom: 20px;
+}
+
+.loading-text {
+  color: var(--ink-55);
+  font-size: 14px;
+}
+
+.machine-panel {
+  background: var(--ink);
+  border-radius: var(--radius-hero);
+  padding: 44px 40px 38px;
+  color: #fff;
+}
+
+.panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 34px;
+}
+
+.panel-head-label {
+  font-size: 10.5px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--on-dark-45);
+}
+
+.lit-label {
+  font-size: 10.5px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+.happy-path {
+  display: flex;
+  align-items: flex-start;
+  gap: 0;
+}
+
+.path-cell {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.edge-zone {
+  height: 34px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 7px;
+  padding-right: 12px;
+}
+
+.edge-zone.hidden {
+  visibility: hidden;
+}
+
+.edge-line {
+  height: 2px;
+  border-radius: 999px;
+  background: var(--accent);
+  opacity: 0.55;
+}
+
+.edge-line.owner-candidate {
+  background: var(--role-recruiter);
+}
+
+.edge-label {
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  color: var(--accent);
+}
+
+.edge-label.owner-candidate {
+  color: var(--role-recruiter);
+}
+
+.node {
+  border-radius: 12px;
+  padding: 18px 16px;
+  margin-right: 12px;
+  background: var(--on-dark-fill);
+  border: 1px solid var(--on-dark-border-strong);
+}
+
+.path-cell.last .node {
+  margin-right: 0;
+}
+
+.node.lit {
+  background: rgba(249, 196, 107, 0.16);
+  border-color: var(--accent);
+}
+
+.node-dot {
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  margin-bottom: 12px;
+  background: var(--ink-35);
+}
+
+.node-dot[data-status='APPLIED'] { background: var(--status-applied); }
+.node-dot[data-status='SCREENING'] { background: var(--status-screening); }
+.node-dot[data-status='INTERVIEW'] { background: var(--status-interview); }
+.node-dot[data-status='OFFER'] { background: var(--status-offer); }
+.node-dot[data-status='ACCEPTED'] { background: var(--status-accepted); }
+.node-dot[data-status='REJECTED'] { background: var(--status-rejected); }
+.node-dot[data-status='WITHDRAWN'] { background: var(--status-withdrawn); }
+
+.node-label {
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: 0.07em;
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.node-label.lit {
+  color: #fff;
+}
+
+.node-count {
+  font-size: 10.5px;
+  letter-spacing: 0.08em;
+  color: var(--on-dark-45);
+  margin-top: 7px;
+}
+
+.terminal-band {
+  margin-top: 40px;
+  padding-top: 34px;
+  border-top: 1px dashed rgba(255, 255, 255, 0.16);
+}
+
+.terminal-band-label {
+  font-size: 10.5px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--on-dark-45);
+  margin-bottom: 20px;
+}
+
+.terminal-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 20px;
+}
+
+.terminal-card {
+  border: 1px dashed rgba(255, 255, 255, 0.2);
+  border-radius: 12px;
+  padding: 20px;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.terminal-card-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.terminal-name {
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.09em;
+  color: #fff;
+}
+
+.spacer {
+  flex: 1;
+}
+
+.owner-pill {
+  font-size: 9.5px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  color: var(--accent);
+  border: 1px solid rgba(249, 196, 107, 0.4);
+  border-radius: 999px;
+  padding: 4px 9px;
+}
+
+.owner-pill.owner-candidate {
+  color: var(--role-recruiter);
+  border-color: rgba(125, 211, 252, 0.4);
+}
+
+.terminal-note {
+  font-size: 13.5px;
+  line-height: 1.6;
+  color: rgba(255, 255, 255, 0.6);
+  margin-top: 14px;
+}
+
+.terminal-strip {
+  margin-top: 34px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: 12px;
+  padding: 18px 20px;
+}
+
+.terminal-strip-label {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  color: #fca5a5;
+  flex: none;
+}
+
+.terminal-strip-text {
+  font-size: 13.5px;
+  line-height: 1.55;
+  color: rgba(255, 255, 255, 0.68);
+}
+
+.fact-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 20px;
+  margin-top: 22px;
+}
+
+.fact-card {
+  padding: 22px;
+}
+
+.fact-value {
+  font-size: 32px;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  margin: 14px 0 8px;
+  line-height: 1;
+}
+
+.fact-body {
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--ink-60);
+}
+
+@media (max-width: 1180px) {
+  .happy-path {
+    flex-wrap: wrap;
+  }
+
+  .path-cell {
+    flex: 1 1 33%;
+    min-width: 120px;
+  }
+
+  .terminal-grid,
+  .fact-grid {
+    grid-template-columns: 1fr;
+  }
+}

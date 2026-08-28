@@ -1,0 +1,91 @@
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 25, 38, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40px;
+  z-index: 40;
+}
+
+.modal-card {
+  width: 100%;
+  max-width: 480px;
+  background: var(--surface);
+  border-radius: var(--radius-hero);
+  padding: 30px;
+  box-shadow: var(--shadow-modal);
+}
+
+.modal-title {
+  margin: 12px 0 0;
+  font-size: 25px;
+  font-weight: 700;
+  letter-spacing: -0.026em;
+}
+
+.transition-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 20px 0 4px;
+}
+
+.arrow {
+  color: var(--ink-45);
+}
+
+.spacer {
+  flex: 1;
+}
+
+.actor {
+  font-size: 10.5px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink-50);
+}
+
+.note-block {
+  margin-top: 22px;
+}
+
+.note-block .kicker {
+  margin-bottom: 9px;
+}
+
+.note-input {
+  width: 100%;
+  min-height: 88px;
+  resize: vertical;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-btn);
+  padding: 13px 14px;
+  font-size: 14px;
+  line-height: 1.5;
+  font-family: var(--font-sans);
+  background: #fff;
+  color: var(--ink);
+  outline: none;
+}
+
+.note-input:focus {
+  border-color: var(--ink);
+}
+
+.modal-footer {
+  display: flex;
+  gap: 10px;
+  margin-top: 22px;
+}
+
+.modal-footer .btn-outline {
+  flex: none;
+}
+
+.confirm-btn {
+  flex: 1;
+  padding: 14px 18px;
+  font-size: 14px;
+}

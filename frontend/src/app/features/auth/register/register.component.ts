@@ -4,7 +4,6 @@ import { Router, RouterLink } from '@angular/router';
 import { switchMap } from 'rxjs';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
-import { MatButtonModule } from '@angular/material/button';
 import { AuthService } from '../../../core/services/auth.service';
 import { extractErrorMessage } from '../../../core/utils/api-error.util';
 
@@ -13,12 +12,13 @@ import { extractErrorMessage } from '../../../core/utils/api-error.util';
  * backend forces it regardless of what's sent) — there is no role picker here on purpose.
  * After a successful register, we immediately call login with the same credentials so the new
  * user lands signed-in rather than being bounced back to a bare login form; register itself
- * returns only a UserResponse, no tokens.
+ * returns only a UserResponse, no tokens. Restyled to match the login screen's two-pane layout;
+ * behavior unchanged.
  */
 @Component({
   selector: 'app-register',
   standalone: true,
-  imports: [ReactiveFormsModule, RouterLink, MatFormFieldModule, MatInputModule, MatButtonModule],
+  imports: [ReactiveFormsModule, RouterLink, MatFormFieldModule, MatInputModule],
   templateUrl: './register.component.html',
   styleUrl: './register.component.css'
 })

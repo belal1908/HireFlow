@@ -1,0 +1,93 @@
+<div class="page-container">
+  <div class="breadcrumb">WORKSPACE / TransitionValidator</div>
+  <div class="header-row">
+    <div class="header-copy">
+      <h1 class="page-title">The state machine</h1>
+      <p class="page-sub">
+        One framework-free decision surface:
+        <span class="mono sig">(currentStatus, targetStatus, actorRole) → allow | deny</span>. Every edge below is
+        owned by exactly one role.
+      </p>
+    </div>
+    <div class="legend">
+      @for (row of legend; track row.label) {
+        <div class="legend-row">
+          <span class="swatch" [class]="row.swatchClass"></span>
+          <span class="mono legend-label">{{ row.label }}</span>
+        </div>
+      }
+    </div>
+  </div>
+
+  @if (errorMessage()) {
+    <p class="error-banner" role="alert">{{ errorMessage() }}</p>
+  }
+
+  @if (loading()) {
+    <p class="loading-text">Loading…</p>
+  } @else {
+    <div class="machine-panel">
+      <div class="panel-head">
+        <div class="mono panel-head-label">Happy path</div>
+        <div class="mono lit-label">LIT: {{ litStatus() ?? '—' }}</div>
+      </div>
+
+      <div class="happy-path">
+        @for (status of statusOrder; track status; let first = $first; let last = $last) {
+          <div class="path-cell" [class.last]="last">
+            <div class="edge-zone" [class.hidden]="first">
+              <div class="edge-line" [class.owner-candidate]="edgeOwner(status) === 'CANDIDATE'"></div>
+              <div class="mono edge-label" [class.owner-candidate]="edgeOwner(status) === 'CANDIDATE'">{{ edgeOwner(status) }}</div>
+            </div>
+            <div class="node" [class.lit]="litStatus() === status">
+              <span class="node-dot" [attr.data-status]="status"></span>
+              <div class="mono node-label" [class.lit]="litStatus() === status">{{ status }}</div>
+              <div class="mono node-count">{{ count(status) }}</div>
+            </div>
+          </div>
+        }
+      </div>
+
+      <div class="terminal-band">
+        <div class="mono terminal-band-label">From any non-terminal state</div>
+        <div class="terminal-grid">
+          @for (status of terminalOrder; track status) {
+            <div class="terminal-card">
+              <div class="terminal-card-head">
+                <span class="node-dot" [attr.data-status]="status"></span>
+                <span class="mono terminal-name">{{ status }}</span>
+                <span class="spacer"></span>
+                <span class="mono owner-pill" [class.owner-candidate]="edgeOwner(status) === 'CANDIDATE' || status === 'WITHDRAWN'">
+                  {{ status === 'WITHDRAWN' ? 'CANDIDATE' : 'RECRUITER' }}
+                </span>
+              </div>
+              <div class="terminal-note">
+                {{ status === 'REJECTED'
+                  ? 'A recruiter can close any non-terminal application. There is no undo — reopening means a new application.'
+                  : 'A candidate can leave at any point, including after an offer. The audit log keeps the reason.' }}
+              </div>
+            </div>
+          }
+        </div>
+      </div>
+
+      <div class="terminal-strip">
+        <span class="mono terminal-strip-label">Terminal</span>
+        <span class="terminal-strip-text">
+          ACCEPTED, REJECTED and WITHDRAWN have zero outbound edges. Not for recruiters, not for admins. If that
+          proves too rigid it becomes a documented decision, not a special case.
+        </span>
+      </div>
+    </div>
+
+    <div class="fact-grid">
+      @for (fact of facts; track fact.kicker) {
+        <div class="card fact-card">
+          <div class="kicker">{{ fact.kicker }}</div>
+          <div class="fact-value">{{ fact.value }}</div>
+          <div class="fact-body">{{ fact.body }}</div>
+        </div>
+      }
+    </div>
+  }
+</div>

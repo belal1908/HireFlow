@@ -1,8 +1,9 @@
 import { HttpClient, HttpParams, HttpResponse } from '@angular/common/http';
 import { Injectable } from '@angular/core';
-import { Observable } from 'rxjs';
+import { Observable, map } from 'rxjs';
 import { environment } from '../../../environments/environment';
 import { PageResponse } from '../models/page.model';
+import { Role } from '../models/user.model';
 import {
   ApplicationEventResponse,
   ApplicationResponse,
@@ -42,6 +43,22 @@ export class ApplicationService {
       params = params.set('status', status);
     }
     return this.http.get<PageResponse<ApplicationResponse>>(this.baseUrl, { params });
+  }
+
+  /**
+   * The redesigned Overview/Applications/State-machine pages all need "every application
+   * visible to the current role" rather than one paginated page — a role-agnostic convenience
+   * over `mine()`/`list()` so those three pages don't each re-implement the same branch. Not a
+   * new backend capability: CANDIDATE still hits `/mine` (already unpaged), RECRUITER/ADMIN still
+   * hit the paginated `/api/applications`, just asked for a generously large single page (see the
+   * same pattern already used for posting-title lookups elsewhere in this app) rather than a
+   * true multi-page fetch loop, which would be overkill for this portfolio-scoped dataset.
+   */
+  scoped(role: Role): Observable<ApplicationResponse[]> {
+    if (role === 'CANDIDATE') {
+      return this.mine();
+    }
+    return this.list(null, null, 0, 500).pipe(map((page) => page.content));
   }
 
   updateStatus(id: number, targetStatus: ApplicationStatus, note?: string): Observable<ApplicationResponse> {

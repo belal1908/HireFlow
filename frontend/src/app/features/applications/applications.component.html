@@ -1,0 +1,211 @@
+<div class="page-container">
+  <div class="breadcrumb">WORKSPACE / PIPELINE</div>
+  <div class="header-row">
+    <div class="header-copy">
+      <h1 class="page-title">Applications</h1>
+      <p class="page-sub">
+        {{ role() === 'CANDIDATE' ? 'Your applications only — the API never returns anyone else’s.'
+           : role() === 'RECRUITER' ? 'All applications on postings you manage.'
+           : 'Every application across every posting.' }}
+      </p>
+    </div>
+    <div class="record-pill">
+      <span class="record-dot"></span>
+      <span class="record-count">{{ visible().length }} records in view</span>
+    </div>
+  </div>
+
+  @if (postingIdFilter() !== null) {
+    <div class="posting-filter-chip">
+      <span>Filtered to {{ postingTitle(postingIdFilter()!) }}</span>
+      <button type="button" (click)="clearPostingFilter()">✕</button>
+    </div>
+  }
+
+  @if (errorMessage()) {
+    <p class="error-banner" role="alert">{{ errorMessage() }}</p>
+  }
+  @if (actionError()) {
+    <p class="error-banner" role="alert">{{ actionError() }}</p>
+  }
+
+  @if (loading()) {
+    <p class="loading-text">Loading…</p>
+  } @else {
+    <div class="filter-bar">
+      <span class="search-icon">⌕</span>
+      <input
+        class="search-input"
+        type="text"
+        [value]="query()"
+        (input)="onQueryChange($any($event.target).value)"
+        placeholder="Search role, company, or candidate"
+      />
+      <div class="divider"></div>
+      @for (f of ['All', 'Active', 'Closed']; track f) {
+        <button type="button" class="filter-btn" [class.active]="filter() === f" (click)="setFilter($any(f))">{{ f }}</button>
+      }
+    </div>
+
+    <div class="body-grid">
+      <div class="card list-card">
+        <div class="list-header">
+          <div>Role / Company</div>
+          <div>Candidate</div>
+          <div>Status</div>
+          <div></div>
+        </div>
+
+        @for (app of visible(); track app.id) {
+          <div
+            [id]="'app-row-' + app.id"
+            class="list-row row-hover"
+            [class.selected]="app.id === selectedId()"
+            (click)="select(app)"
+          >
+            <div class="row-title-block">
+              <div class="row-title">{{ postingTitle(app.jobPostingId) }}</div>
+              @if (postingMeta(app.jobPostingId)) {
+                <div class="row-meta">{{ postingMeta(app.jobPostingId) }}</div>
+              }
+            </div>
+            <div class="row-candidate">{{ candidateLabel(app) }}</div>
+            <div><app-status-badge [status]="app.status" /></div>
+            <div class="row-chevron">›</div>
+          </div>
+        }
+
+        @if (visible().length === 0) {
+          <div class="empty-state">
+            <div class="empty-icon"></div>
+            <div class="empty-title">{{ emptyState().title }}</div>
+            <div class="empty-body">{{ emptyState().body }}</div>
+            <button class="btn btn-ink" type="button" (click)="runEmptyAction()">{{ emptyState().cta }}</button>
+          </div>
+        }
+      </div>
+
+      <div class="card detail-panel" [class.mobile-open]="mobileDetailOpen()">
+        @if (selected(); as sel) {
+          <div>
+            <button class="mobile-back" type="button" (click)="closeMobileDetail()">‹ Back to list</button>
+            <div class="detail-head">
+              <div>
+                <div class="kicker">APP-{{ sel.id }}</div>
+                <h2 class="detail-title">{{ postingTitle(sel.jobPostingId) }}</h2>
+                <div class="detail-sub">{{ postingMeta(sel.jobPostingId) || 'HireFlow' }} · {{ candidateLabel(sel) }}</div>
+              </div>
+              <app-status-badge [status]="sel.status" />
+            </div>
+
+            <div class="stepper-wrap">
+              <app-pipeline-progress [status]="sel.status" />
+            </div>
+
+            <div class="section actions-section">
+              <div class="kicker">Available to you as {{ role() }}</div>
+              <div class="action-row">
+                @for (action of options().allowed; track action.target) {
+                  <button type="button" [class]="action.buttonClass" (click)="openConfirm(action.target)">{{ action.label }}</button>
+                }
+              </div>
+              @if (options().allowed.length === 0) {
+                <div class="no-actions-text">{{ noActionsReason() }}</div>
+              }
+            </div>
+
+            @if (uiState.inspectPermissions() && options().denied.length > 0) {
+              <div class="denied-panel">
+                <div class="kicker">Denied by TransitionValidator</div>
+                <div class="denied-list">
+                  @for (d of options().denied; track d.target) {
+                    <div class="denied-row">
+                      <span class="denied-code mono">403</span>
+                      <div class="denied-text"><strong>→ {{ d.target }}</strong> · {{ d.reason }}</div>
+                    </div>
+                  }
+                </div>
+              </div>
+            }
+
+            <div class="section resume-section">
+              <div class="kicker">Resume</div>
+              @if (sel.resumeFilename) {
+                <div class="resume-row">
+                  <button class="btn-text resume-name" type="button" [disabled]="downloadingResume()" (click)="downloadResume()">
+                    {{ downloadingResume() ? 'Downloading…' : sel.resumeFilename }}
+                  </button>
+                  <span class="resume-size">{{ formatSize(sel.resumeSizeBytes) }}</span>
+                </div>
+              } @else {
+                <div class="resume-empty">No resume uploaded</div>
+              }
+              @if (role() === 'CANDIDATE') {
+                <input
+                  #resumeInput
+                  type="file"
+                  accept="application/pdf"
+                  hidden
+                  [disabled]="uploadingResume()"
+                  (change)="onResumeFileSelected($event)"
+                />
+                <button class="btn btn-outline btn-sm resume-upload-btn" type="button" [disabled]="uploadingResume()" (click)="resumeInput.click()">
+                  {{ uploadingResume() ? 'Uploading…' : sel.resumeFilename ? 'Replace résumé' : 'Upload résumé (PDF)' }}
+                </button>
+                @if (uploadError()) {
+                  <div class="upload-error">{{ uploadError() }}</div>
+                }
+              }
+            </div>
+
+            <div class="section audit-section">
+              <div class="kicker">Audit trail · {{ selectedEvents().length }} events</div>
+              @if (eventsLoading()) {
+                <div class="events-loading">Loading…</div>
+              } @else {
+                <div class="timeline" [id]="'events-' + sel.id">
+                  @for (event of selectedEvents(); track event.id; let last = $last) {
+                    <div class="timeline-row">
+                      <div class="timeline-rail">
+                        <span class="timeline-dot" [class.terminal]="event.toStatus === 'ACCEPTED' || event.toStatus === 'REJECTED' || event.toStatus === 'WITHDRAWN'" [attr.data-status]="event.toStatus"></span>
+                        <span class="timeline-connector" [class.hidden]="last"></span>
+                      </div>
+                      <div class="timeline-content">
+                        <div class="timeline-transition mono">
+                          <span>{{ event.fromStatus ?? '—' }}</span>
+                          <span>→</span>
+                          <span class="to-status" [attr.data-status]="event.toStatus">{{ event.toStatus }}</span>
+                        </div>
+                        <div class="timeline-meta">
+                          <strong>{{ event.changedBy === authService.currentUser()?.id ? 'You' : ('User #' + event.changedBy) }}</strong>
+                          <span class="muted"> · {{ formatDate(event.timestamp) }}</span>
+                        </div>
+                        <div class="timeline-note">{{ event.note || 'No note recorded.' }}</div>
+                      </div>
+                    </div>
+                  }
+                </div>
+              }
+            </div>
+          </div>
+        } @else {
+          <div class="unselected">
+            <div class="unselected-icon"></div>
+            <div class="unselected-title">Select an application</div>
+            <div class="unselected-body">Choose a row to inspect its stage, permitted transitions, and audit trail.</div>
+          </div>
+        }
+      </div>
+    </div>
+  }
+</div>
+
+@if (pendingTransition(); as pending) {
+  <app-transition-confirm-sheet
+    [pending]="pending"
+    [actorRole]="role()"
+    [submitting]="confirmSubmitting()"
+    (confirm)="confirmTransition($event)"
+    (cancel)="cancelConfirm()"
+  />
+}
