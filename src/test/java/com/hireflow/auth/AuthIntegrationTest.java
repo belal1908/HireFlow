@@ -167,6 +167,96 @@ class AuthIntegrationTest extends AbstractIntegrationTest {
     }
 
     @Test
+    void refresh_withDifferentUserAgent_returns401_andRevokesTheToken() throws Exception {
+        String email = uniqueEmail("ua-mismatch");
+        registerCandidate(email, "Password123!");
+        String refreshToken = loginWithUserAgent(email, "Password123!", "DeviceA/1.0").get("refreshToken").asText();
+
+        String refreshBody = """
+                {"refreshToken": "%s"}
+                """.formatted(refreshToken);
+
+        // Same token, different device: rejected.
+        mockMvc.perform(post("/api/auth/refresh")
+                        .header("User-Agent", "DeviceB/1.0")
+                        .contentType("application/json")
+                        .content(refreshBody))
+                .andExpect(status().isUnauthorized());
+
+        // The mismatch burns the token, so even the ORIGINAL device can't use it anymore either -
+        // a mismatch is treated as "this token is compromised", not just "wrong caller, try again".
+        mockMvc.perform(post("/api/auth/refresh")
+                        .header("User-Agent", "DeviceA/1.0")
+                        .contentType("application/json")
+                        .content(refreshBody))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void refresh_withSameUserAgent_succeeds() throws Exception {
+        String email = uniqueEmail("ua-match");
+        registerCandidate(email, "Password123!");
+        String refreshToken = loginWithUserAgent(email, "Password123!", "DeviceA/1.0").get("refreshToken").asText();
+
+        String refreshBody = """
+                {"refreshToken": "%s"}
+                """.formatted(refreshToken);
+
+        mockMvc.perform(post("/api/auth/refresh")
+                        .header("User-Agent", "DeviceA/1.0")
+                        .contentType("application/json")
+                        .content(refreshBody))
+                .andExpect(status().isOk());
+    }
+
+    /**
+     * IP is recorded (see RefreshToken#issuedIp) but deliberately NOT enforced - see the class
+     * comment on AuthService#refresh for why a legitimate client's IP is expected to move around
+     * far more often than its User-Agent does.
+     */
+    @Test
+    void refresh_fromADifferentIp_isAllowed_notEnforced() throws Exception {
+        String email = uniqueEmail("ip-roam");
+        registerCandidate(email, "Password123!");
+        String loginResponse = mockMvc.perform(post("/api/auth/login")
+                        .with(request -> {
+                            request.setRemoteAddr("10.0.0.1");
+                            return request;
+                        })
+                        .contentType("application/json")
+                        .content("""
+                                {"email": "%s", "password": "Password123!"}
+                                """.formatted(email)))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+        String refreshToken = objectMapper.readTree(loginResponse).get("refreshToken").asText();
+
+        mockMvc.perform(post("/api/auth/refresh")
+                        .with(request -> {
+                            request.setRemoteAddr("203.0.113.7");
+                            return request;
+                        })
+                        .contentType("application/json")
+                        .content("""
+                                {"refreshToken": "%s"}
+                                """.formatted(refreshToken)))
+                .andExpect(status().isOk());
+    }
+
+    private JsonNode loginWithUserAgent(String email, String password, String userAgent) throws Exception {
+        String body = """
+                {"email": "%s", "password": "%s"}
+                """.formatted(email, password);
+        String response = mockMvc.perform(post("/api/auth/login")
+                        .header("User-Agent", userAgent)
+                        .contentType("application/json")
+                        .content(body))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+        return objectMapper.readTree(response);
+    }
+
+    @Test
     void protectedEndpoint_withoutToken_returns401() throws Exception {
         mockMvc.perform(get("/api/postings")).andExpect(status().isUnauthorized());
     }

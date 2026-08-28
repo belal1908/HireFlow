@@ -18,9 +18,11 @@ import com.hireflow.user.dto.UserResponse;
 import com.hireflow.user.entity.Role;
 import com.hireflow.user.entity.User;
 import com.hireflow.user.repository.UserRepository;
+import jakarta.servlet.http.HttpServletRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpHeaders;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -50,6 +52,7 @@ public class AuthService {
     private final PasswordResetTokenRepository passwordResetTokenRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
+    private final HttpServletRequest httpRequest;
     private final Duration refreshTokenTtl;
     private final Duration passwordResetTokenTtl;
 
@@ -59,6 +62,7 @@ public class AuthService {
             PasswordResetTokenRepository passwordResetTokenRepository,
             PasswordEncoder passwordEncoder,
             JwtService jwtService,
+            HttpServletRequest httpRequest,
             @Value("${hireflow.jwt.refresh-token-ttl-days}") long refreshTokenTtlDays,
             @Value("${hireflow.password-reset.token-ttl-minutes}") long passwordResetTokenTtlMinutes) {
         this.userRepository = userRepository;
@@ -66,6 +70,7 @@ public class AuthService {
         this.passwordResetTokenRepository = passwordResetTokenRepository;
         this.passwordEncoder = passwordEncoder;
         this.jwtService = jwtService;
+        this.httpRequest = httpRequest;
         this.refreshTokenTtl = Duration.ofDays(refreshTokenTtlDays);
         this.passwordResetTokenTtl = Duration.ofMinutes(passwordResetTokenTtlMinutes);
     }
@@ -102,9 +107,16 @@ public class AuthService {
         return issueTokenPair(user);
     }
 
-    @Transactional
-    public AuthResponse refresh(RefreshRequest request) {
-        String hash = sha256(request.refreshToken());
+    /**
+     * {@code noRollbackFor}: the User-Agent-mismatch branch below revokes the token and then
+     * throws {@code BadCredentialsException} to return 401 - without this, Spring's default
+     * rollback-on-RuntimeException behavior would undo that revocation the instant the exception
+     * propagates, silently defeating the whole point of revoking it (the token would still work
+     * from either device on the next attempt).
+     */
+    @Transactional(noRollbackFor = BadCredentialsException.class)
+    public AuthResponse refresh(RefreshRequest refreshRequest) {
+        String hash = sha256(refreshRequest.refreshToken());
         RefreshToken existing = refreshTokenRepository.findByTokenHash(hash)
                 .orElseThrow(() -> {
                     log.warn("Refresh rejected - token not recognized");
@@ -119,6 +131,32 @@ public class AuthService {
                 log.warn("Refresh rejected - already-rotated token reused (userId={})", existing.getUser().getId());
             }
             throw new BadCredentialsException("Refresh token has expired or already been used");
+        }
+
+        // Device binding: the User-Agent recorded at issuance must match the one presenting the
+        // token now. This is a coarse, trivially-spoofable signal (a header, not a credential) -
+        // it stops a leaked token being casually replayed from a different client, not a
+        // determined attacker who copies the header too. Treated as seriously as token reuse:
+        // revoke immediately rather than just deny, since a mismatch means this token is already
+        // compromised from the legitimate holder's perspective too. IP is recorded for the same
+        // audit trail but deliberately NOT enforced - unlike User-Agent, a legitimate client's IP
+        // changes constantly (mobile networks, VPNs, ISP rotation), so hard-blocking on it would
+        // lock out real users far more often than it would stop an attacker.
+        // Compared from the guaranteed-non-null side (userAgent()/clientIp() always return a
+        // value, "unknown" at worst) so a legacy pre-device-binding row - null userAgent/issuedIp,
+        // since those columns were added later without a backfill - fails closed as a mismatch
+        // rather than NPEing.
+        String currentUserAgent = userAgent();
+        if (!currentUserAgent.equals(existing.getUserAgent())) {
+            existing.setRevoked(true);
+            refreshTokenRepository.save(existing);
+            log.warn("Refresh rejected - User-Agent mismatch, token revoked (userId={}, issuedUserAgent={}, presentedUserAgent={})",
+                    existing.getUser().getId(), existing.getUserAgent(), currentUserAgent);
+            throw new BadCredentialsException("Invalid refresh token");
+        }
+        if (!clientIp().equals(existing.getIssuedIp())) {
+            log.warn("Refresh from a different IP than issuance - allowed, not enforced (userId={}, issuedIp={}, presentedIp={})",
+                    existing.getUser().getId(), existing.getIssuedIp(), clientIp());
         }
 
         // Rotate: burn this token the instant it's used, so replay fails even if it leaks.
@@ -203,10 +241,22 @@ public class AuthService {
                 .tokenHash(sha256(rawRefreshToken))
                 .expiresAt(Instant.now().plus(refreshTokenTtl))
                 .revoked(false)
+                .userAgent(userAgent())
+                .issuedIp(clientIp())
                 .build();
         refreshTokenRepository.save(refreshToken);
 
         return new AuthResponse(accessToken, rawRefreshToken);
+    }
+
+    /** "unknown" rather than null when absent, so refresh's equality check never NPEs on a client that omits the header. */
+    private String userAgent() {
+        String header = httpRequest.getHeader(HttpHeaders.USER_AGENT);
+        return header == null || header.isBlank() ? "unknown" : header;
+    }
+
+    private String clientIp() {
+        return httpRequest.getRemoteAddr();
     }
 
     private String generateRawToken(int byteLength) {

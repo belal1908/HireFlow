@@ -217,6 +217,49 @@ field stays editable). Verified manually end-to-end in a real browser against th
 stack: register → forgot password → dev-mode token shown → follow the link → set a new password →
 old password rejected on login → new password succeeds.
 
+### Device-bound refresh tokens
+
+Closes the last of this README's "Known gaps": refresh tokens were hashed but otherwise
+unconstrained — a leaked token would work from anywhere, forever, until it expired or was rotated.
+`RefreshToken` now also records `userAgent` and `issuedIp` at issuance (`AuthService#issueTokenPair`),
+and `POST /api/auth/refresh` checks both — but treats them very differently:
+
+- **User-Agent is enforced.** A refresh request whose `User-Agent` header doesn't match the one
+  recorded at login/issuance is rejected with 401, **and the token is revoked immediately** — not
+  just denied. A mismatch means this specific token is already compromised from the legitimate
+  holder's perspective too (either it leaked, or something odd is going on), so the fix is to burn
+  it and force a real re-login, not to let the "wrong" caller retry. This is deliberately treated
+  with the same severity as replaying an already-rotated token (see `AuthService#refresh`).
+- **IP is recorded but explicitly NOT enforced.** A legitimate client's IP changes constantly —
+  mobile networks switching towers, VPNs, ISP-level rotation — far more often than its User-Agent
+  does. Hard-blocking on IP would lock out real users more often than it would stop an attacker, so
+  a mismatch is only logged (`AuthService#refresh`'s WARN line), not rejected. This is the
+  documented tradeoff, not an oversight.
+- **Neither is a strong security boundary.** A `User-Agent` header is just a string the client
+  sends — trivial to spoof for anyone who already has the token. What this actually raises is the
+  bar against *casual* replay (a stolen token pasted into a different browser without also copying
+  headers), not against a targeted attacker. It's defense-in-depth on top of hashing + rotation,
+  not a replacement for either.
+- **Backward compatible with existing rows.** `userAgent`/`issuedIp` are nullable at the database
+  level (`ddl-auto: update` can't backfill a `NOT NULL` column onto a populated table), but the
+  application always sets both when creating a token, and treats a `null` (a token issued before
+  this feature existed) as an automatic User-Agent mismatch on its next refresh — it fails closed,
+  forcing a fresh login, rather than silently trusting an unbound legacy token.
+
+**A real bug this surfaced while building it**: the mismatch branch revokes the token and then
+throws `BadCredentialsException` to return 401 — but `@Transactional`'s default behavior is to roll
+back the whole method on any unchecked exception, which was silently undoing that revocation the
+instant the exception propagated (caught by `refresh_withDifferentUserAgent_returns401_andRevokesTheToken`,
+which found the token could still be reused a second time from the original device — the write
+just never survived to be committed). Fixed with `@Transactional(noRollbackFor = BadCredentialsException.class)`
+on `refresh()`.
+
+Covered by 3 new cases in `AuthIntegrationTest`: mismatched User-Agent → 401, and the token is
+provably dead afterward (a *second* refresh attempt, this time with the *correct* original
+User-Agent, also gets 401 — proving revocation actually persisted, not just asserting a flag);
+matching User-Agent → succeeds; and a refresh from a different IP than the one recorded at login
+succeeds (proving IP is genuinely not enforced, not just untested).
+
 ### Résumé storage
 
 `POST/GET /api/applications/{id}/resume` let a candidate attach a PDF to their own application
@@ -563,12 +606,12 @@ mvn test
 ## Verified test results
 
 `mvn verify` was actually run in this environment (Docker available via a Colima daemon) and all
-**313 tests passed, 0 failures, 0 errors**:
+**316 tests passed, 0 failures, 0 errors**:
 
 - `TransitionValidatorExhaustiveTest` — 149/149 (full 7×7×3 cross-product)
 - `TransitionValidatorNegativeTest` — 35/35
 - `ApplicationIntegrationTest` — 30/30 (Testcontainers Postgres)
-- `AuthIntegrationTest` — 22/22 (Testcontainers Postgres — includes password reset)
+- `AuthIntegrationTest` — 25/25 (Testcontainers Postgres — includes password reset, device-bound refresh tokens)
 - `AdminUserIntegrationTest` — 16/16 (Testcontainers Postgres)
 - `ResumeIntegrationTest` — 16/16 (Testcontainers Postgres)
 - `TransitionValidatorPositiveTest` — 12/12
@@ -777,8 +820,9 @@ Explicitly out of scope for now:
   instead of being emailed — a real deployment needs an actual email send wired in first.
 - **No multi-tenancy.** Single organization; all RECRUITER/ADMIN users see the whole pipeline.
 - **No soft-delete / posting archival** beyond the `OPEN`/`CLOSED` status.
-- **JWT refresh tokens are stored hashed (SHA-256) but not IP/device-bound** — rotation-on-use is
-  the only replay defense currently in place.
+- **Device binding (User-Agent) is a coarse, spoofable signal, not a strong security boundary.**
+  See "Device-bound refresh tokens" below — it stops a leaked token being casually replayed from a
+  different client, not a determined attacker who copies the header too.
 - **No metrics or distributed tracing.** Request-correlated event logging exists (see "Logging &
   request correlation" above), but there's no Micrometer/Prometheus/OpenTelemetry integration, no
   dashboards, and no alerting — log lines have to be read, not queried as metrics.
