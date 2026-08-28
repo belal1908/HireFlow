@@ -12,6 +12,8 @@ import com.hireflow.user.dto.UserResponse;
 import com.hireflow.user.entity.Role;
 import com.hireflow.user.entity.User;
 import com.hireflow.user.repository.UserRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -30,6 +32,7 @@ import java.util.HexFormat;
 @Service
 public class AuthService {
 
+    private static final Logger log = LoggerFactory.getLogger(AuthService.class);
     private static final SecureRandom SECURE_RANDOM = new SecureRandom();
     private static final int REFRESH_TOKEN_BYTES = 64;
 
@@ -63,16 +66,24 @@ public class AuthService {
                 .passwordHash(passwordEncoder.encode(request.password()))
                 .role(Role.CANDIDATE) // always forced, regardless of anything the client sends
                 .build();
-        return UserResponse.from(userRepository.save(user));
+        User saved = userRepository.save(user);
+        log.info("New CANDIDATE account registered (userId={})", saved.getId());
+        return UserResponse.from(saved);
     }
 
     @Transactional
     public AuthResponse login(LoginRequest request) {
-        User user = userRepository.findByEmail(request.email().trim().toLowerCase())
-                .orElseThrow(() -> new BadCredentialsException("Invalid email or password"));
+        String normalizedEmail = request.email().trim().toLowerCase();
+        User user = userRepository.findByEmail(normalizedEmail)
+                .orElseThrow(() -> {
+                    log.warn("Login failed - no account for email={}", normalizedEmail);
+                    return new BadCredentialsException("Invalid email or password");
+                });
         if (!passwordEncoder.matches(request.password(), user.getPasswordHash())) {
+            log.warn("Login failed - wrong password (userId={})", user.getId());
             throw new BadCredentialsException("Invalid email or password");
         }
+        log.info("Login succeeded (userId={}, role={})", user.getId(), user.getRole());
         return issueTokenPair(user);
     }
 
@@ -80,9 +91,18 @@ public class AuthService {
     public AuthResponse refresh(RefreshRequest request) {
         String hash = sha256(request.refreshToken());
         RefreshToken existing = refreshTokenRepository.findByTokenHash(hash)
-                .orElseThrow(() -> new BadCredentialsException("Invalid refresh token"));
+                .orElseThrow(() -> {
+                    log.warn("Refresh rejected - token not recognized");
+                    return new BadCredentialsException("Invalid refresh token");
+                });
 
         if (existing.isRevoked() || existing.isExpired()) {
+            // A *revoked* (already-rotated) token being presented again is the signal worth
+            // watching - it means either the same client retried after a race, or the token
+            // leaked and someone else is replaying it. An *expired* one is just routine.
+            if (existing.isRevoked()) {
+                log.warn("Refresh rejected - already-rotated token reused (userId={})", existing.getUser().getId());
+            }
             throw new BadCredentialsException("Refresh token has expired or already been used");
         }
 

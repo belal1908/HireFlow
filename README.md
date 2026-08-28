@@ -193,6 +193,35 @@ similar), which is out of scope here. The Docker image also has to create that d
 it to the non-root runtime user at build time: the app calls `Files.createDirectories()` during
 startup, and when `/app` was left root-owned the container exited before Tomcat ever bound a port.
 
+## Logging & request correlation
+
+Closes (partially — see "Known gaps" below) the README's own long-standing "no structured
+logging/observability yet" gap. Two pieces:
+
+- **Request correlation.** `RequestIdFilter` (`com.hireflow.common.logging`, first in the filter
+  chain — ahead of `RateLimitingFilter` and `JwtAuthenticationFilter`, see `SecurityConfig`) assigns
+  a fresh UUID to every request, puts it in the SLF4J MDC under `requestId`, and echoes it back as
+  the `X-Request-Id` response header. `logging.pattern.console` (`application.yml`) renders
+  `%X{requestId}` into every log line, so every line emitted while handling one request — across
+  every class, not just the controller — can be grepped out of the log by that one ID, and a client
+  bug report ("it broke, here's the response header") maps straight back to server-side log lines.
+- **Key security/business events**, at the points that had no signal at all before this: login
+  success/failure and refresh-token replay attempts (`AuthService`) — reused/rotated refresh tokens
+  in particular are the actual replay-attack signal, not just "expired"; rate-limit trips
+  (`RateLimitingFilter`); rejected JWTs, at DEBUG since an expired token on an idle tab is routine,
+  not a security event (`JwtAuthenticationFilter`); elevated-privilege account creation, with which
+  admin created it (`AdminUserService`); and — the one that mattered most, since it was a genuine
+  blind spot — **unexpected exceptions**, which `GlobalExceptionHandler`'s catch-all previously
+  turned into a generic 500 with zero trace of what actually happened. Every other branch in that
+  class maps an already-meaningful domain exception straight to its status and deliberately does
+  *not* log (that would just be noise); the catch-all is the only one that does, and
+  `GlobalExceptionHandlerTest` is a regression guard for that log line existing at all, using a
+  Logback `ListAppender` attached directly to the class's logger.
+
+Application-level status transitions (`Application`/`ApplicationEvent`) are **not** duplicated here
+— they already have a durable, queryable audit trail in Postgres (see "The state machine" above),
+and a second copy in the log stream would just be redundant.
+
 ## Frontend
 
 `frontend/` is a standalone-components Angular app. Its original brief was to demonstrate three
@@ -481,17 +510,22 @@ mvn test
 
 ## Verified test results
 
-`mvn test` was actually run in this environment (Docker available via a Colima daemon) and all
-**262 tests passed, 0 failures, 0 errors** (247 from Weeks 1–2, plus 15 new for the admin
-user-management endpoints):
+`mvn verify` was actually run in this environment (Docker available via a Colima daemon) and all
+**301 tests passed, 0 failures, 0 errors**:
 
 - `TransitionValidatorExhaustiveTest` — 149/149 (full 7×7×3 cross-product)
-- `TransitionValidatorPositiveTest` — 12/12
 - `TransitionValidatorNegativeTest` — 35/35
+- `ApplicationIntegrationTest` — 30/30 (Testcontainers Postgres)
+- `AdminUserIntegrationTest` — 16/16 (Testcontainers Postgres)
+- `ResumeIntegrationTest` — 16/16 (Testcontainers Postgres)
 - `AuthIntegrationTest` — 13/13 (Testcontainers Postgres)
-- `PostingIntegrationTest` — 10/10 (Testcontainers Postgres)
-- `ApplicationIntegrationTest` — 28/28 (Testcontainers Postgres)
-- `AdminUserIntegrationTest` — 15/15 (Testcontainers Postgres)
+- `TransitionValidatorPositiveTest` — 12/12
+- `PostingIntegrationTest` — 11/11 (Testcontainers Postgres)
+- `AdminBootstrapRunnerTest` — 6/6 (unit, no Spring context)
+- `RateLimitingFilterTest` — 5/5 (unit, no Spring context)
+- `TokenBucketRateLimiterTest` — 4/4 (unit, no Spring context)
+- `RequestIdFilterTest` — 3/3 (unit, no Spring context)
+- `GlobalExceptionHandlerTest` — 1/1 (unit, no Spring context)
 
 The integration tests use **real PostgreSQL via Testcontainers** (`postgres:16-alpine`), not H2 —
 `AbstractIntegrationTest` boots the full Spring context (`@SpringBootTest` + `@AutoConfigureMockMvc`)
@@ -689,4 +723,6 @@ Explicitly out of scope for now:
 - **No soft-delete / posting archival** beyond the `OPEN`/`CLOSED` status.
 - **JWT refresh tokens are stored hashed (SHA-256) but not IP/device-bound** — rotation-on-use is
   the only replay defense currently in place.
-- **No structured logging / observability** (metrics, tracing) yet.
+- **No metrics or distributed tracing.** Request-correlated event logging exists (see "Logging &
+  request correlation" above), but there's no Micrometer/Prometheus/OpenTelemetry integration, no
+  dashboards, and no alerting — log lines have to be read, not queried as metrics.

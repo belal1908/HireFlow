@@ -5,9 +5,12 @@ import com.hireflow.common.dto.PageResponse;
 import com.hireflow.common.exception.BadRequestException;
 import com.hireflow.common.exception.ConflictException;
 import com.hireflow.user.dto.UserResponse;
+import com.hireflow.security.SecurityUtils;
 import com.hireflow.user.entity.Role;
 import com.hireflow.user.entity.User;
 import com.hireflow.user.repository.UserRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -26,6 +29,8 @@ import org.springframework.transaction.annotation.Transactional;
  */
 @Service
 public class AdminUserService {
+
+    private static final Logger log = LoggerFactory.getLogger(AdminUserService.class);
 
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
@@ -53,7 +58,10 @@ public class AdminUserService {
                 .role(request.role())
                 .build();
 
-        return UserResponse.from(userRepository.save(user));
+        User saved = userRepository.save(user);
+        log.info("Elevated account created: userId={} role={} createdByUserId={}",
+                saved.getId(), saved.getRole(), SecurityUtils.currentUser().getId());
+        return UserResponse.from(saved);
     }
 
     @Transactional(readOnly = true)

@@ -50,3 +50,7 @@ hireflow:
 logging:
   level:
     com.hireflow: INFO
+  pattern:
+    # %X{requestId} pulls the per-request correlation ID that RequestIdFilter puts in the MDC -
+    # "no-request-id" only shows up for log lines emitted outside an HTTP request (e.g. startup).
+    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} %-5level [%X{requestId:-no-request-id}] %logger{36} - %msg%n"

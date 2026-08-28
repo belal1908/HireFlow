@@ -8,6 +8,8 @@ import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpHeaders;
 import org.springframework.lang.NonNull;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -28,6 +30,7 @@ import java.util.Optional;
 @Component
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
+    private static final Logger log = LoggerFactory.getLogger(JwtAuthenticationFilter.class);
     private static final String BEARER_PREFIX = "Bearer ";
 
     private final JwtService jwtService;
@@ -60,7 +63,9 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 }
             } catch (JwtException | IllegalArgumentException e) {
                 // Invalid/expired/malformed token: leave the SecurityContext empty so the
-                // request is treated as anonymous and rejected downstream with 401/403.
+                // request is treated as anonymous and rejected downstream with 401/403. DEBUG,
+                // not WARN - an expired token on an idle tab is routine, not a security event.
+                log.debug("Rejected JWT on {}: {}", request.getRequestURI(), e.getMessage());
                 SecurityContextHolder.clearContext();
             }
         }

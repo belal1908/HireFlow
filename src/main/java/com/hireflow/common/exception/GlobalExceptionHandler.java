@@ -1,6 +1,8 @@
 package com.hireflow.common.exception;
 
 import com.hireflow.common.dto.ApiError;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
@@ -21,6 +23,8 @@ import java.util.List;
  */
 @RestControllerAdvice
 public class GlobalExceptionHandler {
+
+    private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
 
     @ExceptionHandler(NotFoundException.class)
     public ResponseEntity<ApiError> handleNotFound(NotFoundException ex) {
@@ -110,8 +114,16 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ApiError.of(HttpStatus.BAD_REQUEST, message));
     }
 
+    /**
+     * The only handler in this class that logs - every other branch here maps an expected,
+     * already-meaningful domain/framework exception straight to its HTTP status, so logging there
+     * would just be noise. This one is different: it's the catch-all for whatever wasn't expected,
+     * and without a log line here that exception - and its stack trace - would otherwise vanish
+     * the instant this handler swallows it into a generic 500.
+     */
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ApiError> handleUnexpected(Exception ex) {
+        log.error("Unhandled exception while processing request", ex);
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                 .body(ApiError.of(HttpStatus.INTERNAL_SERVER_ERROR, "An unexpected error occurred"));
     }

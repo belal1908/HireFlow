@@ -2,6 +2,7 @@ package com.hireflow.security;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.hireflow.common.dto.ApiError;
+import com.hireflow.common.logging.RequestIdFilter;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -39,14 +40,17 @@ public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
     private final RateLimitingFilter rateLimitingFilter;
+    private final RequestIdFilter requestIdFilter;
     private final ObjectMapper objectMapper;
 
     public SecurityConfig(
             JwtAuthenticationFilter jwtAuthenticationFilter,
             RateLimitingFilter rateLimitingFilter,
+            RequestIdFilter requestIdFilter,
             ObjectMapper objectMapper) {
         this.jwtAuthenticationFilter = jwtAuthenticationFilter;
         this.rateLimitingFilter = rateLimitingFilter;
+        this.requestIdFilter = requestIdFilter;
         this.objectMapper = objectMapper;
     }
 
@@ -89,7 +93,8 @@ public class SecurityConfig {
                         .accessDeniedHandler((request, response, accessDeniedException) ->
                                 writeError(response, HttpStatus.FORBIDDEN, "You do not have permission to perform this action")))
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
-                .addFilterBefore(rateLimitingFilter, JwtAuthenticationFilter.class);
+                .addFilterBefore(rateLimitingFilter, JwtAuthenticationFilter.class)
+                .addFilterBefore(requestIdFilter, RateLimitingFilter.class);
 
         return http.build();
     }
