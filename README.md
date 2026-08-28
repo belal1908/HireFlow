@@ -152,6 +152,20 @@ covered: creating an ADMIN account; CANDIDATE and RECRUITER callers get 403; una
 401; `role: CANDIDATE` gets 400; missing/invalid role gets 400; duplicate email (including one
 already taken by a self-registered CANDIDATE) gets 409; invalid email and short password get 400.
 
+**Bootstrapping the very first admin.** `POST /api/admin/users` itself requires an existing ADMIN
+caller, which leaves an unavoidable chicken-and-egg gap for the first one. `AdminBootstrapRunner`
+(`com.hireflow.admin`, a `CommandLineRunner`) closes it: on startup, if both `ADMIN_BOOTSTRAP_EMAIL`
+and `ADMIN_BOOTSTRAP_PASSWORD` are set (see `.env.example`) **and** no ADMIN account exists yet, it
+creates one with a BCrypt-hashed password. It's deliberately narrow — opt-in (unset by default, so
+existing setups are unaffected), and it never overwrites an existing admin's password or runs again
+once one ADMIN exists, so restarting a running deployment with the vars still set is harmless. If
+you'd rather not set env vars, the escape hatch documented for this project's own test seeding still
+works: register a CANDIDATE normally, then `UPDATE users SET role = 'ADMIN' WHERE email = '...';`
+directly in Postgres. Covered by `AdminBootstrapRunnerTest` (unit-level, no Spring context — mirrors
+`RateLimitingFilterTest`'s style): both vars unset, only one set, an ADMIN already existing, the
+target email already belonging to a non-admin account, and the success path (normalizes/lowercases
+the email, sets role ADMIN, and the stored hash actually verifies against the raw password).
+
 ### Résumé storage
 
 `POST/GET /api/applications/{id}/resume` let a candidate attach a PDF to their own application

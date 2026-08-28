@@ -48,6 +48,10 @@ services:
       # IP and would otherwise trip the limiter - see .github/workflows/build.yml.
       AUTH_RATE_LIMIT_ENABLED: ${AUTH_RATE_LIMIT_ENABLED:-true}
       AUTH_RATE_LIMIT_PER_MINUTE: ${AUTH_RATE_LIMIT_PER_MINUTE:-10}
+      # Opt-in: unset by default. Set both in .env to seed the first ADMIN account on startup
+      # instead of promoting one by hand in Postgres - see README "Admin user management".
+      ADMIN_BOOTSTRAP_EMAIL: ${ADMIN_BOOTSTRAP_EMAIL:-}
+      ADMIN_BOOTSTRAP_PASSWORD: ${ADMIN_BOOTSTRAP_PASSWORD:-}
     ports:
       # Published to the host so the *browser* (not just other containers) can reach the API -
       # a browser-rendered SPA can't resolve Docker-internal service names, so the frontend's

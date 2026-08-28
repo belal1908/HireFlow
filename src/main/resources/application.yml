@@ -41,6 +41,11 @@ hireflow:
   rate-limit:
     enabled: ${AUTH_RATE_LIMIT_ENABLED:true}
     requests-per-minute: ${AUTH_RATE_LIMIT_PER_MINUTE:10}
+  admin-bootstrap:
+    # Opt-in: only creates the first ADMIN account if both are set AND no ADMIN exists yet.
+    # See AdminBootstrapRunner / README "Admin user management" for the bootstrap problem this solves.
+    email: ${ADMIN_BOOTSTRAP_EMAIL:}
+    password: ${ADMIN_BOOTSTRAP_PASSWORD:}
 
 logging:
   level:
