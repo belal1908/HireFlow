@@ -2,10 +2,16 @@ package com.hireflow.auth.service;
 
 import com.hireflow.auth.dto.AuthResponse;
 import com.hireflow.auth.dto.LoginRequest;
+import com.hireflow.auth.dto.PasswordResetConfirmRequest;
+import com.hireflow.auth.dto.PasswordResetRequest;
+import com.hireflow.auth.dto.PasswordResetResponse;
 import com.hireflow.auth.dto.RefreshRequest;
 import com.hireflow.auth.dto.RegisterRequest;
+import com.hireflow.auth.entity.PasswordResetToken;
 import com.hireflow.auth.entity.RefreshToken;
+import com.hireflow.auth.repository.PasswordResetTokenRepository;
 import com.hireflow.auth.repository.RefreshTokenRepository;
+import com.hireflow.common.exception.BadRequestException;
 import com.hireflow.common.exception.ConflictException;
 import com.hireflow.security.JwtService;
 import com.hireflow.user.dto.UserResponse;
@@ -28,6 +34,8 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.Base64;
 import java.util.HexFormat;
+import java.util.List;
+import java.util.Optional;
 
 @Service
 public class AuthService {
@@ -35,24 +43,31 @@ public class AuthService {
     private static final Logger log = LoggerFactory.getLogger(AuthService.class);
     private static final SecureRandom SECURE_RANDOM = new SecureRandom();
     private static final int REFRESH_TOKEN_BYTES = 64;
+    private static final int PASSWORD_RESET_TOKEN_BYTES = 32;
 
     private final UserRepository userRepository;
     private final RefreshTokenRepository refreshTokenRepository;
+    private final PasswordResetTokenRepository passwordResetTokenRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
     private final Duration refreshTokenTtl;
+    private final Duration passwordResetTokenTtl;
 
     public AuthService(
             UserRepository userRepository,
             RefreshTokenRepository refreshTokenRepository,
+            PasswordResetTokenRepository passwordResetTokenRepository,
             PasswordEncoder passwordEncoder,
             JwtService jwtService,
-            @Value("${hireflow.jwt.refresh-token-ttl-days}") long refreshTokenTtlDays) {
+            @Value("${hireflow.jwt.refresh-token-ttl-days}") long refreshTokenTtlDays,
+            @Value("${hireflow.password-reset.token-ttl-minutes}") long passwordResetTokenTtlMinutes) {
         this.userRepository = userRepository;
         this.refreshTokenRepository = refreshTokenRepository;
+        this.passwordResetTokenRepository = passwordResetTokenRepository;
         this.passwordEncoder = passwordEncoder;
         this.jwtService = jwtService;
         this.refreshTokenTtl = Duration.ofDays(refreshTokenTtlDays);
+        this.passwordResetTokenTtl = Duration.ofMinutes(passwordResetTokenTtlMinutes);
     }
 
     @Transactional
@@ -113,9 +128,75 @@ public class AuthService {
         return issueTokenPair(existing.getUser());
     }
 
+    /**
+     * Dev-style password reset: this returns the raw reset token directly in the response body
+     * instead of emailing it, since the project has no SMTP infrastructure. <b>This is explicitly
+     * not production-safe</b> - a real deployment must replace this with an actual email send and
+     * drop the token from the response, otherwise anyone who can call this endpoint can reset any
+     * account's password. See the README's "Password reset" section.
+     *
+     * <p>Always returns 200 (never 404) regardless of whether the email matches an account, to
+     * avoid trivially confirming which emails are registered - though note the response body
+     * itself already reveals that (null token vs. a real one), which a production version backed
+     * by real email delivery would not do.
+     */
+    @Transactional
+    public PasswordResetResponse requestPasswordReset(PasswordResetRequest request) {
+        String normalizedEmail = request.email().trim().toLowerCase();
+        Optional<User> user = userRepository.findByEmail(normalizedEmail);
+        if (user.isEmpty()) {
+            log.info("Password reset requested for unrecognized email={}", normalizedEmail);
+            return new PasswordResetResponse(null, null);
+        }
+
+        String rawToken = generateRawToken(PASSWORD_RESET_TOKEN_BYTES);
+        Instant expiresAt = Instant.now().plus(passwordResetTokenTtl);
+        PasswordResetToken resetToken = PasswordResetToken.builder()
+                .user(user.get())
+                .tokenHash(sha256(rawToken))
+                .expiresAt(expiresAt)
+                .used(false)
+                .build();
+        passwordResetTokenRepository.save(resetToken);
+        log.info("Password reset token issued (userId={})", user.get().getId());
+        return new PasswordResetResponse(rawToken, expiresAt);
+    }
+
+    @Transactional
+    public void confirmPasswordReset(PasswordResetConfirmRequest request) {
+        PasswordResetToken resetToken = passwordResetTokenRepository.findByTokenHash(sha256(request.token()))
+                .orElseThrow(() -> {
+                    log.warn("Password reset rejected - token not recognized");
+                    return new BadRequestException("Invalid or expired reset token");
+                });
+
+        if (resetToken.isUsed() || resetToken.isExpired()) {
+            log.warn("Password reset rejected - {} token (userId={})",
+                    resetToken.isUsed() ? "already-used" : "expired", resetToken.getUser().getId());
+            throw new BadRequestException("Invalid or expired reset token");
+        }
+
+        User user = resetToken.getUser();
+        user.setPasswordHash(passwordEncoder.encode(request.newPassword()));
+        userRepository.save(user);
+
+        resetToken.setUsed(true);
+        passwordResetTokenRepository.save(resetToken);
+
+        // A password reset is exactly the moment any existing session might be exactly what the
+        // user is trying to lock out (leaked credentials) - so every refresh token they currently
+        // hold gets revoked too, not just the password changed.
+        List<RefreshToken> activeSessions = refreshTokenRepository.findAllByUserAndRevokedFalse(user);
+        activeSessions.forEach(t -> t.setRevoked(true));
+        refreshTokenRepository.saveAll(activeSessions);
+
+        log.info("Password reset completed (userId={}), {} active session(s) revoked",
+                user.getId(), activeSessions.size());
+    }
+
     private AuthResponse issueTokenPair(User user) {
         String accessToken = jwtService.generateAccessToken(user);
-        String rawRefreshToken = generateRawRefreshToken();
+        String rawRefreshToken = generateRawToken(REFRESH_TOKEN_BYTES);
 
         RefreshToken refreshToken = RefreshToken.builder()
                 .user(user)
@@ -128,8 +209,8 @@ public class AuthService {
         return new AuthResponse(accessToken, rawRefreshToken);
     }
 
-    private String generateRawRefreshToken() {
-        byte[] bytes = new byte[REFRESH_TOKEN_BYTES];
+    private String generateRawToken(int byteLength) {
+        byte[] bytes = new byte[byteLength];
         SECURE_RANDOM.nextBytes(bytes);
         return Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
     }

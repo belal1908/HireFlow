@@ -2,6 +2,9 @@ package com.hireflow.auth.controller;
 
 import com.hireflow.auth.dto.AuthResponse;
 import com.hireflow.auth.dto.LoginRequest;
+import com.hireflow.auth.dto.PasswordResetConfirmRequest;
+import com.hireflow.auth.dto.PasswordResetRequest;
+import com.hireflow.auth.dto.PasswordResetResponse;
 import com.hireflow.auth.dto.RefreshRequest;
 import com.hireflow.auth.dto.RegisterRequest;
 import com.hireflow.auth.service.AuthService;
@@ -34,5 +37,16 @@ public class AuthController {
     @PostMapping("/refresh")
     public AuthResponse refresh(@Valid @RequestBody RefreshRequest request) {
         return authService.refresh(request);
+    }
+
+    @PostMapping("/password-reset/request")
+    public PasswordResetResponse requestPasswordReset(@Valid @RequestBody PasswordResetRequest request) {
+        return authService.requestPasswordReset(request);
+    }
+
+    @PostMapping("/password-reset/confirm")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void confirmPasswordReset(@Valid @RequestBody PasswordResetConfirmRequest request) {
+        authService.confirmPasswordReset(request);
     }
 }

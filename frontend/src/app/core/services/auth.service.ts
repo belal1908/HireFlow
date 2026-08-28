@@ -2,7 +2,15 @@ import { Injectable, signal } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable, finalize, shareReplay, tap, throwError } from 'rxjs';
 import { environment } from '../../../environments/environment';
-import { AuthResponse, LoginRequest, RefreshRequest, RegisterRequest } from '../models/auth.model';
+import {
+  AuthResponse,
+  LoginRequest,
+  PasswordResetConfirmRequest,
+  PasswordResetRequest,
+  PasswordResetResponse,
+  RefreshRequest,
+  RegisterRequest
+} from '../models/auth.model';
 import { UserResponse } from '../models/user.model';
 import { CurrentUser, DecodedAccessToken, Role } from '../models/user.model';
 
@@ -62,6 +70,14 @@ export class AuthService {
       })
     );
     return this.refreshInFlight$;
+  }
+
+  requestPasswordReset(request: PasswordResetRequest): Observable<PasswordResetResponse> {
+    return this.http.post<PasswordResetResponse>(`${environment.apiUrl}/api/auth/password-reset/request`, request);
+  }
+
+  confirmPasswordReset(request: PasswordResetConfirmRequest): Observable<void> {
+    return this.http.post<void>(`${environment.apiUrl}/api/auth/password-reset/confirm`, request);
   }
 
   logout(): void {

@@ -104,6 +104,53 @@ class RateLimitingFilterTest {
         assertThat(second.getStatus()).isEqualTo(429);
     }
 
+    @Test
+    void passwordResetRequestEndpoint_isAlsoLimited() throws Exception {
+        RateLimitingFilter filter = new RateLimitingFilter(objectMapper(), true, 1);
+        FilterChain chain = mock(FilterChain.class);
+
+        filter.doFilter(new MockHttpServletRequest("POST", "/api/auth/password-reset/request"),
+                new MockHttpServletResponse(), chain);
+
+        MockHttpServletResponse second = new MockHttpServletResponse();
+        filter.doFilter(new MockHttpServletRequest("POST", "/api/auth/password-reset/request"), second, chain);
+
+        assertThat(second.getStatus()).isEqualTo(429);
+    }
+
+    @Test
+    void passwordResetConfirmEndpoint_isAlsoLimited() throws Exception {
+        RateLimitingFilter filter = new RateLimitingFilter(objectMapper(), true, 1);
+        FilterChain chain = mock(FilterChain.class);
+
+        filter.doFilter(new MockHttpServletRequest("POST", "/api/auth/password-reset/confirm"),
+                new MockHttpServletResponse(), chain);
+
+        MockHttpServletResponse second = new MockHttpServletResponse();
+        filter.doFilter(new MockHttpServletRequest("POST", "/api/auth/password-reset/confirm"), second, chain);
+
+        assertThat(second.getStatus()).isEqualTo(429);
+    }
+
+    /**
+     * The bucket key is client IP alone (see RateLimitingFilter#doFilterInternal), not
+     * IP+path - so hitting the threshold on one limited endpoint also blocks a different limited
+     * endpoint from the same client until the bucket refills. Worth pinning down explicitly since
+     * it's easy to assume each endpoint gets its own independent budget.
+     */
+    @Test
+    void limitIsSharedAcrossDifferentLimitedEndpoints_fromTheSameClient() throws Exception {
+        RateLimitingFilter filter = new RateLimitingFilter(objectMapper(), true, 1);
+        FilterChain chain = mock(FilterChain.class);
+
+        filter.doFilter(loginRequest(), new MockHttpServletResponse(), chain);
+
+        MockHttpServletResponse registerResponse = new MockHttpServletResponse();
+        filter.doFilter(new MockHttpServletRequest("POST", "/api/auth/register"), registerResponse, chain);
+
+        assertThat(registerResponse.getStatus()).isEqualTo(429);
+    }
+
     private MockHttpServletRequest loginRequest() {
         return new MockHttpServletRequest("POST", "/api/auth/login");
     }

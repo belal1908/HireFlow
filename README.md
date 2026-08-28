@@ -91,6 +91,8 @@ validator (see `adminIsNeverAllowedAnyTransition`).
 | POST | `/api/auth/register` | public | Candidate self-registration; role is always forced to `CANDIDATE` server-side, regardless of anything the client sends |
 | POST | `/api/auth/login` | public | Returns `{ accessToken, refreshToken }` |
 | POST | `/api/auth/refresh` | public | Rotates the refresh token; the old one is immediately revoked (replay fails) |
+| POST | `/api/auth/password-reset/request` | public | Body: `{ email }`. Always 200; see "Password reset" below for why the token is in the response body |
+| POST | `/api/auth/password-reset/confirm` | public | Body: `{ token, newPassword }`. Single-use, TTL-bound; also revokes every active refresh token for that account |
 | GET | `/api/postings` | authenticated | ADMIN sees OPEN + CLOSED; everyone else sees OPEN only |
 | POST | `/api/postings` | ADMIN | Creates a posting (starts OPEN) |
 | PATCH | `/api/postings/{id}` | ADMIN | Partial update (title/description/status) |
@@ -165,6 +167,55 @@ directly in Postgres. Covered by `AdminBootstrapRunnerTest` (unit-level, no Spri
 `RateLimitingFilterTest`'s style): both vars unset, only one set, an ADMIN already existing, the
 target email already belonging to a non-admin account, and the success path (normalizes/lowercases
 the email, sets role ADMIN, and the stored hash actually verifies against the raw password).
+
+### Password reset
+
+Closes another of this README's own documented gaps ("No password reset ... registration and
+login only"), with one deliberate simplification stated plainly rather than hidden.
+
+`POST /api/auth/password-reset/request` (body: `{ email }`) generates a single-use,
+time-limited token (`hireflow.password-reset.token-ttl-minutes`, default 30, env
+`PASSWORD_RESET_TOKEN_TTL_MINUTES`) and — **this is the simplification** — returns it directly in
+the response body (`resetToken`, `expiresAt`) instead of emailing it. There is no SMTP
+infrastructure anywhere in this project (no `spring-boot-starter-mail`, no mail config), and adding
+one was out of scope for this task; this is the "dev-style" tradeoff, chosen explicitly over adding
+that infrastructure. **This makes the endpoint categorically unsafe for a real deployment**: proving
+you control the target inbox is the entire security property a password reset flow exists to
+provide, and handing the token straight back in the response — to whoever called the endpoint, not
+whoever owns the email — provides none of it. A real deployment must replace this with an actual
+email send and drop the token from the response before this endpoint could ever be exposed publicly.
+The endpoint still always returns 200 rather than 404 for an unrecognized email (mirroring how a
+real email-based flow would behave, to keep the shape honest even though the token's presence in
+this dev version already reveals whether the account exists — a real version, without the token in
+the body, would not have that particular leak).
+
+`POST /api/auth/password-reset/confirm` (body: `{ token, newPassword }`) is otherwise built exactly
+like a real one: the token is only ever stored as a SHA-256 hash (same technique as refresh
+tokens — see `RefreshToken`/`PasswordResetToken`), is single-use (`used` flips to `true` the
+instant it's redeemed, independent of TTL), and — since a password reset is exactly the moment an
+account's existing sessions might be the actual problem (leaked credentials) — every refresh token
+the account currently holds is revoked at the same time, not just the password changed. Both
+endpoints are covered by `RateLimitingFilter` (the request side is an enumeration/spam target, the
+confirm side is a token-guessing target).
+
+Covered by 12 new cases in `AuthIntegrationTest`: token issued for an existing account vs. null for
+an unknown one; invalid request email → 400; a valid confirm actually changes the password (old
+password stops working, new one works); confirm revokes existing refresh tokens (proven by
+attempting to use one afterward and getting 401, not just asserting a DB flag); garbage/unknown
+token → 400; reusing an already-redeemed token → 400; an expired token → 400 (the test backdates
+`expiresAt` directly via the repository — there's no other way to fast-forward 30 minutes in a
+test); a too-short new password → 400, with an explicit check that a token rejected by validation
+*before* the service method ever ran was not incorrectly marked used.
+
+**Frontend.** `ForgotPasswordComponent` (`/forgot-password`) and `ResetPasswordComponent`
+(`/reset-password?token=...`) wire up the two endpoints; the login page's "Forgot password?" link
+(previously a static "No reset flow" label) now points at the first one. The dev-mode token isn't
+hidden from the user or buried in devtools — `ForgotPasswordComponent` shows it in an explicit
+amber "DEV MODE — NO EMAIL SERVER CONFIGURED" callout with a one-click link straight into
+`ResetPasswordComponent` (which pre-fills the token from the `?token=` query param, though the
+field stays editable). Verified manually end-to-end in a real browser against the running dev
+stack: register → forgot password → dev-mode token shown → follow the link → set a new password →
+old password rejected on login → new password succeeds.
 
 ### Résumé storage
 
@@ -283,6 +334,7 @@ renders role-adaptive content instead of being a separate page per role:
 | Route | What it is | Role behavior |
 |---|---|---|
 | `/login`, `/register` | Restyled two-pane cream/navy auth screens | unchanged auth logic; no demo role picker — role comes from the real JWT |
+| `/forgot-password`, `/reset-password` | **New** — password reset request/confirm, same two-pane auth layout | public; see "Password reset" above, including the explicit dev-mode token callout |
 | `/` | **New** — Overview dashboard: stat row, pipeline-shape bars, a role-specific nudge panel, recent-activity log | copy, stats, and nudge content are role-conditional |
 | `/applications` | Merges the old `MyApplicationsComponent` + `ApplicationsDashboardComponent` | CANDIDATE sees only their own (`GET /api/applications/mine`); RECRUITER/ADMIN see all, with search/status-filter. Master-detail: list + a sticky detail panel with the stepper, an "available to you as `<ROLE>`" action row, an optional "Inspect permissions" denied-transitions panel, and the audit trail. Actions open a transition confirm-sheet (note field, optional) before issuing the real `PATCH` — the pre-redesign UI fired transitions immediately on click, this one doesn't. |
 | `/state-machine` | **New** — a visual graph of the happy path + terminal branches, mirroring `TransitionValidator` | node counts reflect the current role's visible-application scope |
@@ -511,18 +563,18 @@ mvn test
 ## Verified test results
 
 `mvn verify` was actually run in this environment (Docker available via a Colima daemon) and all
-**301 tests passed, 0 failures, 0 errors**:
+**313 tests passed, 0 failures, 0 errors**:
 
 - `TransitionValidatorExhaustiveTest` — 149/149 (full 7×7×3 cross-product)
 - `TransitionValidatorNegativeTest` — 35/35
 - `ApplicationIntegrationTest` — 30/30 (Testcontainers Postgres)
+- `AuthIntegrationTest` — 22/22 (Testcontainers Postgres — includes password reset)
 - `AdminUserIntegrationTest` — 16/16 (Testcontainers Postgres)
 - `ResumeIntegrationTest` — 16/16 (Testcontainers Postgres)
-- `AuthIntegrationTest` — 13/13 (Testcontainers Postgres)
 - `TransitionValidatorPositiveTest` — 12/12
 - `PostingIntegrationTest` — 11/11 (Testcontainers Postgres)
+- `RateLimitingFilterTest` — 8/8 (unit, no Spring context)
 - `AdminBootstrapRunnerTest` — 6/6 (unit, no Spring context)
-- `RateLimitingFilterTest` — 5/5 (unit, no Spring context)
 - `TokenBucketRateLimiterTest` — 4/4 (unit, no Spring context)
 - `RequestIdFilterTest` — 3/3 (unit, no Spring context)
 - `GlobalExceptionHandlerTest` — 1/1 (unit, no Spring context)
@@ -718,7 +770,11 @@ actually run on GitHub.
 
 Explicitly out of scope for now:
 
-- **No password reset / email verification.** Registration and login only.
+- **No email verification.** Registration only checks the email is well-formed, not that the
+  registrant actually controls it.
+- **Password reset exists but isn't production-safe** (see "Password reset" above): there's no
+  SMTP infrastructure in this project, so the reset token is returned directly in the API response
+  instead of being emailed — a real deployment needs an actual email send wired in first.
 - **No multi-tenancy.** Single organization; all RECRUITER/ADMIN users see the whole pipeline.
 - **No soft-delete / posting archival** beyond the `OPEN`/`CLOSED` status.
 - **JWT refresh tokens are stored hashed (SHA-256) but not IP/device-bound** — rotation-on-use is
