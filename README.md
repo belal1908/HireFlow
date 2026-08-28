@@ -17,9 +17,9 @@ not another CRUD demo.
 
 This covers the **Week 1 + Week 2 + Week 3 milestones**: a working Spring Boot backend, an Angular
 frontend that consumes it, a Playwright e2e suite that exercises all three roles (positive and
-negative cases) against the real running stack, a full-stack Docker Compose setup, and a
-GitHub Actions CI workflow. See "End-to-end tests", "Full stack via Docker Compose", and
-"Continuous integration" below for what's actually been verified in this environment.
+negative cases) against the real running stack, a full-stack Docker Compose setup, a GitHub Actions
+CI workflow, and a real free-tier live deploy. See "End-to-end tests", "Full stack via Docker
+Compose", "Live deploy", and "Continuous integration" below for what's actually been verified.
 
 ## Tech stack
 
@@ -897,7 +897,7 @@ not what makes routing work on this deploy.
 workflow (`checkout` → `setup` → run the real command, no extra layers), triggering on push/PR to
 `main`. Three jobs:
 
-- **`backend`** — JDK 21 (Temurin), `mvn -B verify` (runs the full 262-test suite, including the
+- **`backend`** — JDK 21 (Temurin), `mvn -B verify` (runs the full 326-test suite, including the
   Testcontainers integration tests — `ubuntu-latest` runners ship Docker natively, so none of this
   local machine's Colima/`DOCKER_HOST`/Ryuk workarounds are needed there).
 - **`frontend`** — Node 20, `npm ci`, then `ng test --watch=false --browsers=ChromeHeadlessNoSandbox`
@@ -912,15 +912,11 @@ workflow (`checkout` → `setup` → run the real command, no extra layers), tri
   on the teardown/upload steps so a failed run still cleans up and still leaves a report to
   inspect.
 
-**Not run in this environment** — there is no GitHub Actions runner available here, and the repo
-hasn't been pushed to GitHub (out of scope for this task; see "Constraints"). What *was* verified
-directly: `mvn -B verify` (BUILD SUCCESS, 262/262 — pre-dates the frontend redesign, which didn't
-touch the backend), `npm ci` + `ng test --watch=false --browsers=ChromeHeadlessNoSandbox` (14/14),
-`ng build` (succeeds), and `npx playwright test` (12/12, re-verified after the ApplyTrack redesign
-against the rewritten suite) all actually run and pass in this environment using the same commands
-the workflow uses; the YAML itself was parsed successfully (`YAML.load_file` via Ruby's Psych) to
-catch syntax errors. The badge at the top of this README will only turn green once the workflow has
-actually run on GitHub.
+**This is genuinely running, not just wired up** — the repo is pushed to GitHub
+(`belal1908/HireFlow`) and every commit on `main` triggers a real run on GitHub's own runners, not
+just this local environment. The badge at the top of this README reflects the actual current state
+of `main`. `mvn -B verify` (326/326), `ng test` (14/14), `ng build`, and `npx playwright test`
+(12/12) all pass there the same as they do locally.
 
 ## Known gaps / non-goals
 
@@ -935,7 +931,7 @@ Explicitly out of scope for now:
 - **No multi-tenancy.** Single organization; all RECRUITER/ADMIN users see the whole pipeline.
 - **No soft-delete / posting archival** beyond the `OPEN`/`CLOSED` status.
 - **Device binding (User-Agent) is a coarse, spoofable signal, not a strong security boundary.**
-  See "Device-bound refresh tokens" below — it stops a leaked token being casually replayed from a
+  See "Device-bound refresh tokens" above — it stops a leaked token being casually replayed from a
   different client, not a determined attacker who copies the header too.
 - **No metrics or distributed tracing.** Request-correlated event logging exists (see "Logging &
   request correlation" above), but there's no Micrometer/Prometheus/OpenTelemetry integration, no
