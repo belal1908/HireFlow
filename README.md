@@ -3,11 +3,11 @@
 ![build](https://github.com/okaybelal/HireFlow/actions/workflows/build.yml/badge.svg)
 ![license](https://img.shields.io/badge/license-MIT-blue.svg)
 
-**Live demo**: [hireflow-frontend-zg69.onrender.com](https://hireflow-frontend-zg69.onrender.com)
-(backend: [hireflow-backend-c3mv.onrender.com](https://hireflow-backend-c3mv.onrender.com)), free
-tiers throughout (Render + Neon). The backend spins down after 15 minutes idle, so the first
-request after a while can take 30-50s to wake it up. Log in as `admin@hireflow.demo` /
-`DemoAdmin2026!` for the ADMIN view, or register a new account for the CANDIDATE flow.
+**Live demo**: [hireflow-backend-c3mv.onrender.com](https://hireflow-backend-c3mv.onrender.com),
+one URL for both the app and the API (free tier: Render + Neon). It spins down after 15 minutes
+idle, so the first request after a while can take 30-50s to wake it up. Log in as
+`admin@hireflow.demo` / `DemoAdmin2026!` for the ADMIN view, or register a new account for the
+CANDIDATE flow.
 
 ![Overview dashboard](docs/screenshots/overview.png)
 
@@ -238,26 +238,32 @@ console errors.
 
 ## Live deploy
 
-Three free-tier services: **Neon** (serverless Postgres), **Render web service** (backend, from
-the same root `Dockerfile` Docker Compose uses), and **Render static site** (frontend). Getting
-this live needed two hardcoded-to-`localhost` things to become configurable: CORS
-(`CORS_ALLOWED_ORIGINS` env var) and the frontend's `apiUrl` (now three separate build
-configurations in `angular.json`, so `ng serve`, the Docker Compose build, and the real Render
-build each get the right backend URL without contaminating each other).
+Two free-tier services: **Neon** (serverless Postgres) and a single **Render web service**
+running the backend, which also serves the built Angular app. One URL, one process, no CORS to
+configure on the live deploy at all, since every request from the page is same-origin.
 
-Two real bugs surfaced building this. First, a chicken-and-egg problem: the backend needs the
-frontend's URL for CORS, and the frontend needs the backend's URL baked in at build time, but
-Render only assigns each service's real URL once it exists. Solved by creating the frontend first
-(its URL never changes again), then the backend with that URL already set, then one final push
-with the backend's now-known URL baked into the frontend. Second, SPA deep-links (`/register`,
-refreshing on `/settings`) 404'd on Render's static host, since it doesn't run nginx and doesn't do
-SPA fallback by default. A Netlify-style `_redirects` file didn't work (Render doesn't auto-detect
-it); the actual fix was a rewrite rule configured directly on the service dashboard.
+The Docker image builds the frontend first (its own stage, `frontend/Dockerfile`-style but folded
+into the root `Dockerfile`) and copies the output into `src/main/resources/static/` before the
+Maven build, so it ends up on the jar's classpath. `SpaWebConfig` on the backend serves it with
+SPA-style fallback routing (a direct hit or refresh on `/settings`, `/postings`, etc. still
+resolves to `index.html`, the same problem nginx's `try_files` solves locally), and
+`SecurityConfig` only requires auth under `/api/**`, everything else is the public static shell.
+`environment.production.ts`'s `apiUrl` is just `''`, relative to whatever origin serves it, so
+there's no backend URL to predict or bake in at build time either.
+
+This wasn't the first version of the live deploy: it started as two separate Render services
+(a static site for the frontend, a web service for the backend), which needed real code changes to
+make CORS and the frontend's `apiUrl` configurable, and ran into a real chicken-and-egg problem
+(each service needing the other's URL before either existed) and a real bug (Render's static
+hosting doesn't do SPA fallback the way nginx does, so deep-links 404'd until a rewrite rule was
+added). Collapsing to one service removed both problems entirely rather than working around them.
+The separate Docker Compose "full" profile (two containers, nginx serving the frontend) still
+exists locally, unaffected, since it's a genuinely different use case (frontend and backend as
+independently scalable pieces).
 
 Known limitations, stated plainly: `ADMIN_BOOTSTRAP_EMAIL`/`PASSWORD` are demo-only credentials for
-a portfolio deploy with no real data in it. Résumé uploads live on the backend container's
-ephemeral filesystem and are lost on every redeploy, acceptable for a free-tier demo, not for
-anything real.
+a portfolio deploy with no real data in it. Résumé uploads live on the container's ephemeral
+filesystem and are lost on every redeploy, acceptable for a free-tier demo, not for anything real.
 
 ## Continuous integration
 
