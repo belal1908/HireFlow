@@ -33,3 +33,7 @@ out/
 
 ### Logs ###
 *.log
+
+### Frontend build output copied in for the single-deploy Docker build (Dockerfile's ###
+### frontend-build stage) - never a source directory, always regenerated. ###
+src/main/resources/static/

@@ -1,10 +1,12 @@
-# Keeps the backend image's build context small and fast - none of this is needed to build the
-# jar (target/ is rebuilt fresh inside the container; frontend/e2e have their own Dockerfiles or
-# aren't needed in this image at all).
+# Keeps the build context small and fast. frontend/ IS needed now (the root Dockerfile's
+# frontend-build stage bundles the Angular app into this image, see the Dockerfile's comment) -
+# only its own build artifacts/deps are excluded below. e2e/ still isn't needed in this image.
 target/
 .git/
 .idea/
 *.log
-frontend/
+frontend/node_modules/
+frontend/dist/
+frontend/.angular/
 e2e/
 .env

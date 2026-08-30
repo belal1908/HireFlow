@@ -92,7 +92,12 @@ public class SecurityConfig {
                 .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/auth/**").permitAll()
-                        .anyRequest().authenticated())
+                        .requestMatchers("/api/**").authenticated()
+                        // Everything else is the bundled Angular app's static shell (index.html,
+                        // JS/CSS bundles, the SPA-fallback route from SpaWebConfig) - it carries no
+                        // secrets and enforces nothing itself; every real permission check happens
+                        // server-side on the /api/** calls it makes.
+                        .anyRequest().permitAll())
                 .exceptionHandling(eh -> eh
                         .authenticationEntryPoint((request, response, authException) ->
                                 writeError(response, HttpStatus.UNAUTHORIZED, "Authentication required"))
