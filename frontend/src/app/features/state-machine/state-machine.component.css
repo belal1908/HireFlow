@@ -36,7 +36,7 @@
 
 .swatch-recruiter { background: var(--accent); }
 .swatch-candidate { background: var(--role-recruiter); }
-.swatch-none { background: rgba(21, 34, 50, 0.3); }
+.swatch-none { background: rgba(255, 255, 255, 0.3); }
 
 .legend-label {
   font-size: 11px;
@@ -60,7 +60,8 @@
 }
 
 .machine-panel {
-  background: var(--ink);
+  background: var(--panel);
+  border: 1px solid var(--on-dark-border);
   border-radius: var(--radius-hero);
   padding: 44px 40px 38px;
   color: #fff;

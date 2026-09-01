@@ -41,15 +41,15 @@
   border-radius: var(--radius-btn);
   padding: 13px 15px;
   font-size: 14.5px;
-  background: #fff;
+  background: var(--surface);
 }
 
 .muted-text {
-  color: rgba(21, 34, 50, 0.75);
+  color: rgba(255, 255, 255, 0.75);
 }
 
 .role-row {
-  background: rgba(21, 34, 50, 0.05);
+  background: rgba(255, 255, 255, 0.05);
   border-radius: 12px;
   padding: 16px;
   display: flex;
@@ -72,6 +72,7 @@
   font-size: 11px;
   font-weight: 600;
   letter-spacing: 0.1em;
+  color: var(--bg);
   background: var(--accent);
   border-radius: 999px;
   padding: 7px 12px;
@@ -82,7 +83,7 @@
   font-size: 11px;
   font-weight: 600;
   letter-spacing: 0.1em;
-  background: rgba(21, 34, 50, 0.08);
+  background: rgba(255, 255, 255, 0.08);
   color: var(--ink-55);
   border-radius: 999px;
   padding: 7px 12px;
@@ -132,8 +133,8 @@
 .dev-token {
   font-size: 12px;
   color: var(--ink);
-  background: rgba(255, 255, 255, 0.6);
-  border: 1px solid rgba(21, 34, 50, 0.12);
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: var(--radius-btn-sm);
   padding: 10px 12px;
   word-break: break-all;
@@ -184,7 +185,7 @@
 }
 
 .matrix-row.odd {
-  background: rgba(21, 34, 50, 0.035);
+  background: rgba(255, 255, 255, 0.035);
 }
 
 .matrix-transition {

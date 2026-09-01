@@ -16,7 +16,8 @@
 }
 
 .forbidden-panel {
-  background: var(--ink);
+  background: var(--panel);
+  border: 1px solid var(--on-dark-border);
   border-radius: var(--radius-hero);
   padding: 34px;
   margin-bottom: 22px;
@@ -120,7 +121,7 @@
   margin: 16px 0 0;
   font-size: 13.5px;
   line-height: 1.6;
-  color: var(--ink-65, rgba(21, 34, 50, 0.65));
+  color: var(--ink-65, rgba(255, 255, 255, 0.65));
 }
 
 .posting-footer {
@@ -187,7 +188,7 @@
   padding: 13px 14px;
   font-size: 14.5px;
   font-family: var(--font-sans);
-  background: #fff;
+  background: var(--surface);
   color: var(--ink);
   outline: none;
 }

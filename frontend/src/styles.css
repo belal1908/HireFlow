@@ -9,27 +9,35 @@
    ============================================================================================ */
 
 :root {
-  /* Color */
-  --bg: #f2efe8;
-  --surface: #fbfaf7;
-  --ink: #152232;
+  /* Color — dark theme (shadcn/Vercel-style: near-black page, slightly-raised card surfaces,
+     a single warm accent, everything else grayscale). --ink is the FOREGROUND/text color here
+     (near-white on a dark page) — it used to double as the dark-panel background color too, back
+     when the page itself was light; panels that need to read as a distinct dark surface (sidebar,
+     hero panels, modals) now use --panel instead, so text-on-dark and panel-background-color are
+     no longer the same variable pointing at two different meanings. */
+  --bg: #09090b;
+  --surface: #18181b;
+  --panel: #18181b;
+  --ink: #fafafa;
   --accent: #f9c46b;
-  --border: rgba(21, 34, 50, 0.08);
-  --border-strong: rgba(21, 34, 50, 0.16);
-  --ink-60: rgba(21, 34, 50, 0.62);
-  --ink-55: rgba(21, 34, 50, 0.55);
-  --ink-50: rgba(21, 34, 50, 0.5);
-  --ink-45: rgba(21, 34, 50, 0.45);
-  --ink-35: rgba(21, 34, 50, 0.35);
+  --border: rgba(255, 255, 255, 0.1);
+  --border-strong: rgba(255, 255, 255, 0.16);
+  --ink-60: rgba(250, 250, 250, 0.64);
+  --ink-55: rgba(250, 250, 250, 0.56);
+  --ink-50: rgba(250, 250, 250, 0.5);
+  --ink-45: rgba(250, 250, 250, 0.45);
+  --ink-35: rgba(250, 250, 250, 0.32);
 
-  /* On the dark ink panels (sidebar, hero panels, modals-on-dark, state machine) */
+  /* On the dark panels (sidebar, hero panels, modals-on-dark, state machine) — kept as a
+     separate semantic name from --ink even though the values are close, since a panel is always
+     dark regardless of theme, while --ink flips with the page. */
   --on-dark: #fff;
   --on-dark-65: rgba(255, 255, 255, 0.65);
   --on-dark-45: rgba(255, 255, 255, 0.45);
-  --on-dark-border: rgba(255, 255, 255, 0.07);
-  --on-dark-border-strong: rgba(255, 255, 255, 0.16);
-  --on-dark-fill: rgba(255, 255, 255, 0.05);
-  --on-dark-fill-strong: rgba(255, 255, 255, 0.08);
+  --on-dark-border: rgba(255, 255, 255, 0.1);
+  --on-dark-border-strong: rgba(255, 255, 255, 0.2);
+  --on-dark-fill: rgba(255, 255, 255, 0.06);
+  --on-dark-fill-strong: rgba(255, 255, 255, 0.1);
 
   /* Status colors — one per ApplicationStatus enum value. This is the single source of truth;
      .status-badge, the pipeline stepper, the state machine graph and the transition matrix all
@@ -104,7 +112,7 @@ a {
 }
 
 a:hover {
-  color: rgba(21, 34, 50, 0.75);
+  color: rgba(250, 250, 250, 0.75);
 }
 
 button {
@@ -185,7 +193,8 @@ textarea {
 }
 
 .card-dark {
-  background: var(--ink);
+  background: var(--panel);
+  border: 1px solid var(--on-dark-border);
   border-radius: var(--radius-card);
   color: var(--on-dark);
 }
@@ -230,11 +239,11 @@ textarea {
 
 .btn-ink {
   background: var(--ink);
-  color: #fff;
+  color: var(--bg);
 }
 
 .btn-ink:hover:not(:disabled) {
-  background: #223349;
+  background: rgba(250, 250, 250, 0.85);
 }
 
 .btn-outline {
@@ -244,17 +253,17 @@ textarea {
 }
 
 .btn-outline:hover:not(:disabled) {
-  background: rgba(21, 34, 50, 0.05);
+  background: rgba(255, 255, 255, 0.05);
 }
 
 .btn-ghost {
-  background: rgba(21, 34, 50, 0.09);
+  background: rgba(255, 255, 255, 0.08);
   color: var(--ink);
   border: none;
 }
 
 .btn-ghost:hover:not(:disabled) {
-  background: rgba(21, 34, 50, 0.14);
+  background: rgba(255, 255, 255, 0.13);
 }
 
 .btn-accept {
@@ -296,7 +305,7 @@ textarea {
 
 .btn-dashed {
   background: transparent;
-  border: 1px dashed rgba(21, 34, 50, 0.28);
+  border: 1px dashed rgba(255, 255, 255, 0.24);
   color: var(--ink-60);
   border-radius: var(--radius-btn);
   padding: 13px 18px;
@@ -421,8 +430,8 @@ textarea {
 }
 .posting-badge[data-status='CLOSED'] {
   color: var(--ink-50);
-  background: rgba(21, 34, 50, 0.07);
-  border: 1px solid rgba(21, 34, 50, 0.14);
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
 }
 
 /* ------------------------------------------------------------------------------------------
@@ -523,7 +532,7 @@ textarea {
 .mat-mdc-raised-button.mat-primary,
 .mat-mdc-unelevated-button.mat-primary {
   --mdc-filled-button-container-color: var(--ink);
-  --mdc-filled-button-label-text-color: #fff;
+  --mdc-filled-button-label-text-color: var(--bg);
 }
 
 .mat-mdc-paginator {
@@ -557,5 +566,5 @@ textarea {
 }
 
 .mat-mdc-row:hover {
-  background: rgba(21, 34, 50, 0.03);
+  background: rgba(255, 255, 255, 0.04);
 }

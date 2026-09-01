@@ -51,7 +51,7 @@ import { STATUS_ORDER } from '../transition/transition-validator';
         height: 5px;
         width: 100%;
         border-radius: 999px;
-        background: rgba(21, 34, 50, 0.12);
+        background: rgba(255, 255, 255, 0.12);
         display: block;
       }
 
