@@ -24,8 +24,9 @@ demo.
 
 **Frontend**: Angular 18+, standalone components (no NgModules), functional route guards +
 `HttpInterceptorFn`, RxJS for token-refresh coordination, no state-management library. A custom
-design system ("ApplyTrack": cream/ink-navy/amber, Plus Jakarta Sans + IBM Plex Mono) sits on top
-of Angular Material's form controls, restyled via global overrides. Karma/Jasmine for unit tests.
+dark design system (near-black surfaces, a single amber accent, Plus Jakarta Sans + IBM Plex Mono)
+sits on top of Angular Material's form controls, restyled via global overrides. Karma/Jasmine for
+unit tests.
 
 ## Project layout
 
@@ -166,11 +167,11 @@ Three real Angular patterns, not a design showcase:
 
 ![Postings grid](docs/screenshots/postings.png)
 
-**Design system.** Rebuilt to match a commissioned design ("ApplyTrack"): CSS custom properties as
-the single source of truth (`--bg`, `--ink`, `--accent`, per-status colors), Angular Material kept
-only where it's genuinely the right tool (form fields, selects, paginators), everything else
-(applications list, postings grid, sidebar, stepper, state-machine graph, modals) as plain custom
-components. Every authenticated route now renders role-adaptive content instead of being a
+**Design system.** CSS custom properties as the single source of truth (`--bg`, `--surface`,
+`--panel`, `--ink`, `--accent`, per-status colors), Angular Material kept only where it's
+genuinely the right tool (form fields, selects, paginators), everything else (applications list,
+postings grid, sidebar, stepper, state-machine graph, modals) as plain custom components. Every
+authenticated route now renders role-adaptive content instead of being a
 separate page per role; `roleGuard('ADMIN')` protects exactly one route, `/admin/users`. A
 client-side port of `TransitionValidator` (`shared/transition/transition-validator.ts`) drives
 which buttons render, but it's explicitly not authoritative: every transition still goes through

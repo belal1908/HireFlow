@@ -2,7 +2,7 @@
 // Not part of the test suite. Run with: node screenshot-live.js
 const { chromium } = require('@playwright/test');
 
-const BASE = 'https://hireflow-frontend-zg69.onrender.com';
+const BASE = 'https://hireflow-backend-c3mv.onrender.com';
 const OUT = '../docs/screenshots';
 
 async function main() {
